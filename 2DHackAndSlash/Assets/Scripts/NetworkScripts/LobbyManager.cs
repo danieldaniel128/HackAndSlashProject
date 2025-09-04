@@ -34,7 +34,7 @@ public class LobbyManager : MonoBehaviour, INetworkRunnerCallbacks
         _status.text = "Hosting...";
         await RunnerBootstrap.Runner.StartGame(new StartGameArgs
         {
-            GameMode = GameMode.Shared,
+            GameMode = GameMode.Host,
             SessionName = "Room_" + Random.Range(0, 9999),
             SceneManager = RunnerBootstrap.Runner.GetComponent<NetworkSceneManagerDefault>(),
             Scene = SceneRef.FromIndex(1) // Game.unity index
@@ -54,7 +54,7 @@ public class LobbyManager : MonoBehaviour, INetworkRunnerCallbacks
             _status.text = "Joining " + _sessions[0].Name;
             await RunnerBootstrap.Runner.StartGame(new StartGameArgs
             {
-                GameMode = GameMode.Shared,
+                GameMode = GameMode.Host,
                 SessionName = _sessions[0].Name,
                 SceneManager = RunnerBootstrap.Runner.GetComponent<NetworkSceneManagerDefault>()//change to runnerBootstrap later.
                 // No Scene here for joiners
