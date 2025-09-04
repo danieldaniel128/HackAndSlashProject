@@ -1,7 +1,7 @@
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using Fusion;
 using Fusion.Sockets;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -10,7 +10,7 @@ public class LobbyManager : MonoBehaviour, INetworkRunnerCallbacks
     [Header("UI")]
     [SerializeField] private Button _hostBtn;
     [SerializeField] private Button _joinBtn;
-    [SerializeField] private Text _status;
+    [SerializeField] private TextMeshProUGUI _status;
 
     private NetworkRunner _runner;
     private List<SessionInfo> _sessions = new();
@@ -18,10 +18,6 @@ public class LobbyManager : MonoBehaviour, INetworkRunnerCallbacks
     void Awake()
     {
         // The NetworkRunner drives Fusion’s simulation loop.
-        _runner = gameObject.AddComponent<NetworkRunner>();
-        _runner.ProvideInput = true; // this client will send input every tick
-        gameObject.AddComponent<NetworkSceneManagerDefault>(); // handles scene switching
-
         _hostBtn.onClick.AddListener(() => HostGame());
         _joinBtn.onClick.AddListener(() => JoinFirstAvailable());
     }
@@ -29,29 +25,39 @@ public class LobbyManager : MonoBehaviour, INetworkRunnerCallbacks
     // === Host a new session ===
     async void HostGame()
     {
-        _status.text = "Hosting...";
-        await _runner.StartGame(new StartGameArgs
+        if (RunnerBootstrap.Runner.IsRunning)
         {
-            GameMode = GameMode.Shared, // Shared = closest to PUN
+            Debug.LogWarning("Runner already running. Skipping StartGame.");
+            return;
+        }
+
+        _status.text = "Hosting...";
+        await RunnerBootstrap.Runner.StartGame(new StartGameArgs
+        {
+            GameMode = GameMode.Shared,
             SessionName = "Room_" + Random.Range(0, 9999),
-            SceneManager = _runner.GetComponent<NetworkSceneManagerDefault>(),
-            Scene = SceneRef.FromIndex(
-                UnityEngine.SceneManagement.SceneUtility.GetBuildIndexByScenePath("Assets/Scenes/Game.unity")
-            )
+            SceneManager = RunnerBootstrap.Runner.GetComponent<NetworkSceneManagerDefault>(),
+            Scene = SceneRef.FromIndex(1) // Game.unity index
         });
     }
 
-    // === Join if one exists, otherwise host ===
     async void JoinFirstAvailable()
     {
         if (_sessions.Count > 0)
         {
+            if (RunnerBootstrap.Runner.IsRunning)
+            {
+                Debug.LogWarning("Runner already running. Skipping StartGame.");
+                return;
+            }
+
             _status.text = "Joining " + _sessions[0].Name;
-            await _runner.StartGame(new StartGameArgs
+            await RunnerBootstrap.Runner.StartGame(new StartGameArgs
             {
                 GameMode = GameMode.Shared,
                 SessionName = _sessions[0].Name,
-                SceneManager = _runner.GetComponent<NetworkSceneManagerDefault>()
+                SceneManager = RunnerBootstrap.Runner.GetComponent<NetworkSceneManagerDefault>()//change to runnerBootstrap later.
+                // No Scene here for joiners
             });
         }
         else
