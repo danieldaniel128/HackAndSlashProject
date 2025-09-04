@@ -480,6 +480,8 @@ GameObject:
   m_Component:
   - component: {fileID: 379054631}
   - component: {fileID: 379054630}
+  - component: {fileID: 379054633}
+  - component: {fileID: 379054632}
   m_Layer: 0
   m_Name: Runner
   m_TagString: Untagged
@@ -499,6 +501,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b040218d4171ef447a7025d54e6a4abb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  _networkRunner: {fileID: 379054633}
 --- !u!4 &379054631
 Transform:
   m_ObjectHideFlags: 0
@@ -514,6 +517,33 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &379054632
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 379054629}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 90a93abf1a391964a94e5c139605105b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  IsSceneTakeOverEnabled: 0
+  LogSceneLoadErrors: 0
+  DestroySpawnedPrefabsOnSceneUnload: 0
+--- !u!114 &379054633
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 379054629}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: -1199893898, guid: e725a070cec140c4caffb81624c8c787, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &393143498
 GameObject:
   m_ObjectHideFlags: 0

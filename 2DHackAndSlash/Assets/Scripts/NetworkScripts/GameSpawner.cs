@@ -10,25 +10,26 @@ public class GameSpawner : RunnerCallbacksBase
     private bool _sceneReady = false;
     private readonly HashSet<PlayerRef> _pending = new HashSet<PlayerRef>();
 
+
+
     void OnEnable()
     {
         // Be robust: find the existing persistent runner from Lobby
-        var runner = FindObjectOfType<NetworkRunner>();
+        var runner = RunnerBootstrap.Runner;
         if (runner) runner.AddCallbacks(this);
         else Debug.LogWarning("[Spawner] No NetworkRunner found in scene.");
     }
 
     void OnDisable()
     {
-        var runner = FindObjectOfType<NetworkRunner>();
+        var runner = RunnerBootstrap.Runner;
         if (runner) runner.RemoveCallbacks(this);
     }
-
     public override void OnSceneLoadDone(NetworkRunner runner)
     {
         _sceneReady = true;
         if (!runner.IsServer) return;
-
+        Debug.Log("scene load done");
         // Spawn for everyone already in the session
         foreach (var player in runner.ActivePlayers)
         {
@@ -48,6 +49,7 @@ public class GameSpawner : RunnerCallbacksBase
 
     public override void OnPlayerJoined(NetworkRunner runner, PlayerRef player)
     {
+        Debug.Log("player joined my method");
         if (!runner.IsServer) return;
 
         if (_sceneReady)
