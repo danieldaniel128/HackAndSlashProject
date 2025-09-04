@@ -5,7 +5,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class LobbyManager : MonoBehaviour, INetworkRunnerCallbacks
+public class LobbyManager : RunnerCallbacksBase
 {
 
     [Header("UI")]
@@ -81,46 +81,14 @@ public class LobbyManager : MonoBehaviour, INetworkRunnerCallbacks
     }
 
     // === Session list updates ===
-    public void OnSessionListUpdated(NetworkRunner runner, List<SessionInfo> sessions)
+    public override void OnSessionListUpdated(NetworkRunner runner, List<SessionInfo> sessions)
     {
         _sessions = sessions;
         _status.text = $"Sessions found: {sessions.Count}";
         Debug.Log($"[Lobby] Found {sessions.Count} sessions");
     }
-
-    // === Player lifecycle ===
-    public void OnPlayerJoined(NetworkRunner runner, PlayerRef player) { }
-    public void OnPlayerLeft(NetworkRunner runner, PlayerRef player) { }
-
-    // === Connection lifecycle ===
-    public void OnConnectedToServer(NetworkRunner runner) { }
-    public void OnDisconnectedFromServer(NetworkRunner runner) { }
-    public void OnDisconnectedFromServer(NetworkRunner runner, NetDisconnectReason reason) { }
-    public void OnConnectFailed(NetworkRunner runner, NetAddress addr, NetConnectFailedReason reason) { }
-
-    // === Data channels ===
-    public void OnReliableDataReceived(NetworkRunner runner, PlayerRef player, System.ArraySegment<byte> data) { }
-    public void OnReliableDataReceived(NetworkRunner runner, PlayerRef player, ReliableKey key, System.ArraySegment<byte> data) { }
-    public void OnReliableDataProgress(NetworkRunner runner, PlayerRef player, ReliableKey key, float progress) { }
-
-    // === Simulation & input ===
-    public void OnInput(NetworkRunner runner, NetworkInput input) { }
-    public void OnInputMissing(NetworkRunner runner, PlayerRef player, NetworkInput input) { }
-    public void OnUserSimulationMessage(NetworkRunner runner, SimulationMessagePtr msg) { }
-
-    // === Scenes ===
-    public void OnSceneLoadStart(NetworkRunner runner) { }
-    public void OnSceneLoadDone(NetworkRunner runner) { }
-
-    // === AOI ===
-    public void OnObjectEnterAOI(NetworkRunner runner, NetworkObject obj, PlayerRef player) { }
-    public void OnObjectExitAOI(NetworkRunner runner, NetworkObject obj, PlayerRef player) { }
-
-    // === Misc ===
-    public void OnShutdown(NetworkRunner runner, ShutdownReason reason) { }
-    public void OnCustomAuthenticationResponse(NetworkRunner runner, Dictionary<string, object> data) { }
-    public void OnHostMigration(NetworkRunner runner, HostMigrationToken token) { }
-    public void OnConnectRequest(NetworkRunner runner, NetworkRunnerCallbackArgs.ConnectRequest req, byte[] token)
+    
+    public override void OnConnectRequest(NetworkRunner runner, NetworkRunnerCallbackArgs.ConnectRequest req, byte[] token)
     {
         req.Accept();
     }
