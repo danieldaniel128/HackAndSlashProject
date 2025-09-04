@@ -19,46 +19,46 @@ public class PlayerController : MonoBehaviour
         _jumpAction.InitAction(_playerLocomotionState);
         _dashAction.InitAction(_playerLocomotionState);
     }
-    void Update()
-    {
-        _dashAction.HandleDash();
-        RotatePlayer();
-    }
+    //void Update()
+    //{
+    //    _dashAction.HandleDash();
+    //    RotatePlayer();
+    //}
 
-    void FixedUpdate()
-    {
-        _moveAction.MovementFixed(Time.fixedDeltaTime);
-        _jumpAction.HandleFall(Time.fixedDeltaTime);
-        _jumpAction.HandleJump(Time.fixedDeltaTime);
-    }
+    //void FixedUpdate()
+    //{
+    //    _moveAction.MovementFixed(Time.fixedDeltaTime);
+    //    _jumpAction.HandleFall(Time.fixedDeltaTime);
+    //    _jumpAction.HandleJump(Time.fixedDeltaTime);
+    //}
 
 
-    public void OnMove(InputAction.CallbackContext ctx)
-    {
-        if (ctx.performed)
-        {
-            _playerLocomotionState.MoveInput = ctx.ReadValue<float>();
-            if (Math.Abs(_playerLocomotionState.MoveInput) < 0.35f)
-                _playerLocomotionState.MoveInput = 0; // Ignore small inputs to prevent jitter
-        }
-        else
-            _playerLocomotionState.MoveInput = 0;
-    }
-    public void OnJump(InputAction.CallbackContext ctx)
-    {
-        if (ctx.started)
-            _playerLocomotionState.IsJumpHeld = true;
-        else if (ctx.performed)
-            _jumpAction.TryJump();
-        else if (ctx.canceled)
-            _playerLocomotionState.IsJumpHeld = false;
-    }
-    public void OnDash(InputAction.CallbackContext ctx)
-    {
-        if (!ctx.performed)
-            return;
-        _dashAction.TryDash();
-    }
+    //public void OnMove(InputAction.CallbackContext ctx)
+    //{
+    //    if (ctx.performed)
+    //    {
+    //        _playerLocomotionState.MoveInput = ctx.ReadValue<float>();
+    //        if (Math.Abs(_playerLocomotionState.MoveInput) < 0.35f)
+    //            _playerLocomotionState.MoveInput = 0; // Ignore small inputs to prevent jitter
+    //    }
+    //    else
+    //        _playerLocomotionState.MoveInput = 0;
+    //}
+    //public void OnJump(InputAction.CallbackContext ctx)
+    //{
+    //    if (ctx.started)
+    //        _playerLocomotionState.IsJumpHeld = true;
+    //    else if (ctx.performed)
+    //        _jumpAction.TryJump();
+    //    else if (ctx.canceled)
+    //        _playerLocomotionState.IsJumpHeld = false;
+    //}
+    //public void OnDash(InputAction.CallbackContext ctx)
+    //{
+    //    if (!ctx.performed)
+    //        return;
+    //    _dashAction.TryDash();
+    //}
     private void RotatePlayer()
     {
         Vector3 newScaleRotated = transform.localScale;
@@ -78,6 +78,38 @@ public class PlayerController : MonoBehaviour
             newScaleRotated.x = rotateLeft ? -1f : 1f;
         }
         transform.localScale = newScaleRotated;
+    }
+
+    public void ApplyNetworkInput(PlayerInputData input)
+    {
+        // Movement input
+        _playerLocomotionState.MoveInput = input.MoveX;
+        Debug.Log(input.MoveX);
+        if (Mathf.Abs(_playerLocomotionState.MoveInput) < 0.35f)
+            _playerLocomotionState.MoveInput = 0;
+
+        // Jump input
+        _playerLocomotionState.IsJumpHeld = input.JumpHeld;
+        if (input.JumpPressed)
+        {
+            _jumpAction.TryJump();
+        }
+
+        // Dash input
+        if (input.DashPressed)
+        {
+            _dashAction.TryDash();
+        }
+
+        // Flip character
+        RotatePlayer();
+    }
+    public void ApplyPhysicsActions(float deltaTime)
+    {
+        // Run the same logic you had in FixedUpdate
+        _moveAction.MovementFixed(deltaTime);
+        _jumpAction.HandleFall(deltaTime);
+        _jumpAction.HandleJump(deltaTime);
     }
 }
 [System.Serializable]

@@ -1,9 +1,11 @@
 using Fusion;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class RunnerBootstrap : MonoBehaviour
 {
     public static NetworkRunner Runner; // single shared runner
+    public static NetworkSceneManagerDefault SceneManager;
     [SerializeField] NetworkRunner _networkRunner;
     void Awake()
     {
@@ -20,7 +22,7 @@ public class RunnerBootstrap : MonoBehaviour
 
         Runner.ProvideInput = true;
         if (GetComponent<NetworkSceneManagerDefault>() == null)
-            gameObject.AddComponent<NetworkSceneManagerDefault>();
+            SceneManager = gameObject.AddComponent<NetworkSceneManagerDefault>();
 
         DontDestroyOnLoad(gameObject); // critical
     }

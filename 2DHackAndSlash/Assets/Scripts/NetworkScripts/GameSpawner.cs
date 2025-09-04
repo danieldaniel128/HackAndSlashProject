@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Fusion;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class GameSpawner : RunnerCallbacksBase
 {
@@ -76,5 +77,22 @@ public class GameSpawner : RunnerCallbacksBase
         var avatar = runner.Spawn(_playerPrefab, pos, Quaternion.identity, player);
         runner.SetPlayerObject(player, avatar); // map PlayerRef -> avatar to avoid duplicates
         Debug.Log($"[Spawner] Spawned player {player} at spawn {idx}");
+    }
+    public override void OnInput(NetworkRunner runner, NetworkInput input)
+    {
+        var data = new PlayerInputData();
+
+        // Replace this with Unity InputSystem / keyboard checks
+        if (Keyboard.current != null)
+        {
+            data.MoveX = (Keyboard.current.aKey.isPressed ? -1 :
+                         Keyboard.current.dKey.isPressed ? 1 : 0);
+
+            data.JumpPressed = Keyboard.current.spaceKey.wasPressedThisFrame;
+            data.JumpHeld = Keyboard.current.spaceKey.isPressed;
+            data.DashPressed = Keyboard.current.leftShiftKey.wasPressedThisFrame;
+        }
+
+        input.Set(data);
     }
 }

@@ -47,7 +47,7 @@ public class LobbyManager : RunnerCallbacksBase
         {
             GameMode = GameMode.Host,
             SessionName = "Room_" + Random.Range(0, 9999),
-            SceneManager = RunnerBootstrap.Runner.GetComponent<NetworkSceneManagerDefault>(),
+            SceneManager = RunnerBootstrap.SceneManager,
             Scene = SceneRef.FromIndex(1) // your Game scene index
         });
     }
