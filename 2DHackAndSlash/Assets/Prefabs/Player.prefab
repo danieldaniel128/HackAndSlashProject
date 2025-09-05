@@ -15,6 +15,7 @@ GameObject:
   - component: {fileID: 2409328723881107896}
   - component: {fileID: 6808750950714740376}
   - component: {fileID: 7278118019903499568}
+  - component: {fileID: 7903387089988782680}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -215,6 +216,7 @@ MonoBehaviour:
   NetworkedBehaviours:
   - {fileID: 6808750950714740376}
   - {fileID: 7278118019903499568}
+  - {fileID: 6819963751099523110}
   ForceRemoteRenderTimeframe: 0
 --- !u!50 &2409328723881107896
 Rigidbody2D:
@@ -280,6 +282,23 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _controller: {fileID: 1255036690834409808}
   _camera: {fileID: 4353613511514846374}
+--- !u!114 &7903387089988782680
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 189251098569890708}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a9fd79d79a0fb459ababab9a78f00caa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _physicsAuthority: 2
+  _physicsTiming: 3
+  ClientPhysicsSimulation: 0
+  DeltaTimeMultiplier: 1
+  SetUnityFixedTimestep: 0
 --- !u!1 &3860399857926972968
 GameObject:
   m_ObjectHideFlags: 0
@@ -292,6 +311,7 @@ GameObject:
   - component: {fileID: 6549248373787849248}
   - component: {fileID: 8714271946698711211}
   - component: {fileID: 1535963280253835791}
+  - component: {fileID: 6819963751099523110}
   m_Layer: 0
   m_Name: Warrior
   m_TagString: Untagged
@@ -437,6 +457,24 @@ BoxCollider2D:
   m_AutoTiling: 0
   m_Size: {x: 1.1557852, y: 2.0739932}
   m_EdgeRadius: 0
+--- !u!114 &6819963751099523110
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3860399857926972968}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 506319458, guid: e725a070cec140c4caffb81624c8c787, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  Animator: {fileID: 6549248373787849248}
+  ApplyTiming: 2
+  SyncSettings: 79
+  StateHashes: 000000002b1a167c7940695520e23b685928a8ce0d286c404e865f4324abbf6776f1c04e2afa8626a8b5caa31606b3a7445ccc8ea11c578692af72b13270625b602a1d72b87d388753beb07aa73e86544cfd0ea956d336f6656013c17fe418cd3c4a2bce3e725c3b6c2823122321d7a68665301966c12eb3e48e623613b91130501722336767e9cea515286ce57658660b1490130cb8a80da9fc4fb2a187a70811761856fd0d594123a61822
+  TriggerHashes: 000000003e725c3b28a9810748d3833b9719fb81
+  TotalWords: 1
 --- !u!1 &4812008731110276728
 GameObject:
   m_ObjectHideFlags: 0

@@ -1,18 +1,19 @@
 using UnityEngine;
+using Fusion;
 
 public class JumpAction : PlayerAction
 {
     [Header("Jump Settings")]
-    [SerializeField] private float _jumpForce = 12f;        // Initial upward force
-    [SerializeField] private int _maxJumps = 1;             // e.g., 2 for double jump
-    [SerializeField] private float _coyoteTime = 0.15f;     // Grace time after leaving ground
-    [SerializeField] private float _jumpBuffer = 0.1f;      // Buffer for input before landing
-    [SerializeField] private float _fallGravityMultiplier = 2f; // Faster fall for snappy jumps
-    [SerializeField] private float _lowJumpMultiplier = 2f;     // Extra gravity if player releases jump early
-    [SerializeField] private float _timeBeforeFalling = 3f; // Time after jump before falling animation
-    [SerializeField] private LayerMask _groundLayer; // assign in inspector
+    [SerializeField] private float _jumpForce = 12f;
+    [SerializeField] private int _maxJumps = 1;
+    [SerializeField] private float _coyoteTime = 0.15f;
+    [SerializeField] private float _jumpBuffer = 0.1f;
+    [SerializeField] private float _fallGravityMultiplier = 2f;
+    [SerializeField] private float _lowJumpMultiplier = 2f;
+    [SerializeField] private float _timeBeforeFalling = 3f;
+    [SerializeField] private LayerMask _groundLayer;
     [SerializeField] private LayerMask _ceilingLayer;
-    [SerializeField] float _stopEpsilon = 0.3f;
+    [SerializeField] private float _stopEpsilon = 0.3f;
 
     [Header("Runtime")]
     [SerializeField, ReadOnly] private int _jumpsRemaining;
@@ -20,153 +21,192 @@ public class JumpAction : PlayerAction
     [SerializeField, ReadOnly] private float _jumpBufferTimer;
     [SerializeField, ReadOnly] private float _timeBeforeFallingTimer;
 
-    [SerializeField, ReadOnly] bool _isBeforeFalling = false;
-    [SerializeField, ReadOnly] bool _isFalling = false;
-    private float _gravityInitValue;
+    [SerializeField, ReadOnly] private bool _isBeforeFalling = false;
+    [SerializeField, ReadOnly] private bool _isFalling = false;
+
+    private float _defaultGravityScale;
+
     private void Start()
     {
         _jumpsRemaining = _maxJumps;
         _coyoteTimer = _coyoteTime;
         _timeBeforeFallingTimer = _timeBeforeFalling;
-        _gravityInitValue = Physics2D.gravity.y;
+
+        if (_playerLocomotionState.Rb != null)
+        {
+            _defaultGravityScale = _playerLocomotionState.Rb.gravityScale;
+        }
     }
 
-    /// <summary>
-    /// Called when jump input is pressed.
-    /// Stores the intent to jump using buffer.
-    /// </summary>
     public void TryJump()
     {
-        _jumpBufferTimer = _jumpBuffer; // reset buffer
+        _jumpBufferTimer = _jumpBuffer;
     }
 
-    /// <summary>
-    /// Called every Update().
-    /// Handles buffer, coyote time, and variable jump.
-    /// </summary>
     public void HandleJump(float dt)
     {
-        Rigidbody2D rb = _playerLocomotionState.Rb;
-        // --- Update timers ---
+        if (!HasAuthority()) return; // only state authority executes
+
+        var rb = _playerLocomotionState.Rb;
+
+        // timers
         if (!_playerLocomotionState.IsGrounded && _coyoteTimer > 0f)
         {
             _coyoteTimer -= dt;
             if (_coyoteTimer <= 0f)
             {
-                _coyoteTimer = 0f; // clamp
-                if(_jumpsRemaining > 1)
+                _coyoteTimer = 0f;
+                if (_jumpsRemaining > 1)
                     _jumpsRemaining--;
             }
         }
+
         if (_jumpBufferTimer > 0f)
         {
             _jumpBufferTimer -= dt;
             if (_jumpBufferTimer <= 0f)
                 _jumpBufferTimer = 0f;
         }
+
         if (_isBeforeFalling)
         {
             _timeBeforeFallingTimer -= dt;
-            rb.linearVelocityY = 0;
-            Debug.Log("<color=lightblue>before falling</color>");
+            rb.linearVelocity = new Vector2(rb.linearVelocity.x, 0f);
+            rb.gravityScale = 0f;
+
             if (_timeBeforeFallingTimer <= 0f)
             {
-                _timeBeforeFallingTimer = 0f; // clamp
+                _timeBeforeFallingTimer = 0f;
                 _isBeforeFalling = false;
                 _isFalling = true;
-                _playerLocomotionState.Anim.SetTrigger("Falling");
-                Physics2D.gravity = new Vector2(Physics2D.gravity.x, _gravityInitValue);
-                Debug.Log("<color=red>start falling</color>");
+
+                SetAnimTrigger("Falling");
+                rb.gravityScale = _defaultGravityScale;
             }
         }
-        // --- Perform jump if buffered and allowed ---
-        if (_jumpBufferTimer > 0f && ((_coyoteTimer > 0f && _jumpsRemaining == 1) || (_maxJumps >= 2 && 1 <= _jumpsRemaining)))
+
+        // perform jump
+        if (_jumpBufferTimer > 0f &&
+            ((_coyoteTimer > 0f && _jumpsRemaining == 1) || (_maxJumps >= 2 && _jumpsRemaining >= 1)))
         {
             DoJump();
-            _jumpBufferTimer = 0f; // consume buffer
+            _jumpBufferTimer = 0f;
         }
     }
+
     public void HandleFall(float dt)
     {
-        Rigidbody2D rb = _playerLocomotionState.Rb;
-        if (!_isBeforeFalling &&  0 < rb.linearVelocityY && rb.linearVelocityY <= _stopEpsilon && _playerLocomotionState.IsJumping == true)
+        if (!HasAuthority()) return;
+
+        var rb = _playerLocomotionState.Rb;
+
+        if (!_isBeforeFalling &&
+            rb.linearVelocity.y > 0 &&
+            rb.linearVelocity.y <= _stopEpsilon &&
+            _playerLocomotionState.IsJumping)
         {
-            rb.linearVelocityY = 0;
-            Physics2D.gravity = new Vector2(Physics2D.gravity.x,0);
+
+            rb.linearVelocity = new Vector2(rb.linearVelocity.x, 0f);
+            rb.gravityScale = 0f;
             _isBeforeFalling = true;
-            _playerLocomotionState.Anim.SetTrigger("JumpToFall");
+
+            SetAnimTrigger("JumpToFall");
             _timeBeforeFallingTimer = _timeBeforeFalling;
-            Debug.Log("<color=blue>before falling</color>");
         }
-        // --- Apply variable gravity for better feel ---
-        else if (_isFalling) // falling
+        else if (_isFalling)
         {
-            rb.linearVelocity += Vector2.up * Physics2D.gravity.y * (_fallGravityMultiplier - 1f) * dt;
-            Debug.Log("<color=red>falling</color>");
+            rb.linearVelocity += Vector2.up * Physics2D.gravity.y *
+                           (_fallGravityMultiplier - 1f) * dt;
         }
-        else if (rb.linearVelocityY > 0 && !_playerLocomotionState.IsJumpHeld) // rising but jump released
+        else if (rb.linearVelocity.y > 0 && !_playerLocomotionState.IsJumpHeld)
         {
-            rb.linearVelocity += Vector2.up * Physics2D.gravity.y * (_lowJumpMultiplier - 1f) * dt;
+            rb.linearVelocity += Vector2.up * Physics2D.gravity.y *
+                           (_lowJumpMultiplier - 1f) * dt;
         }
     }
 
-    /// <summary>
-    /// Executes a jump.
-    /// </summary>
     private void DoJump()
     {
-        Rigidbody2D rb = _playerLocomotionState.Rb;
-        rb.linearVelocity = new Vector2(rb.linearVelocityX, 0f); // reset vertical before jump
-        rb.linearVelocity += Vector2.up * _jumpForce;   // add jump impulse
-        _playerLocomotionState.IsJumping = true;
+        var rb = _playerLocomotionState.Rb;
 
-        _coyoteTimer = 0f;     // consume coyote time
-        _jumpsRemaining--;     // consume jump
-        _playerLocomotionState.Anim.SetTrigger("Jump");
-        Debug.Log("jumped");
+        rb.linearVelocity = new Vector2(rb.linearVelocity.x, 0f);
+        rb.linearVelocity += Vector2.up * _jumpForce;
+
+        _playerLocomotionState.IsJumping = true;
+        _coyoteTimer = 0f;
+        _jumpsRemaining--;
+
+        SetAnimTrigger("Jump");
     }
+
     private void OnTriggerEnter2D(Collider2D collision)
     {
-        // --- Grounded reset ---
-        // Check if the collided object's layer is in the ground mask
+        if (!HasAuthority()) return;
+
+        var rb = _playerLocomotionState.Rb;
+
         if (((1 << collision.gameObject.layer) & _groundLayer) != 0)
         {
-            // It's ground
             _playerLocomotionState.IsGrounded = true;
             _playerLocomotionState.IsJumping = false;
             _isFalling = false;
-            _coyoteTimer = _coyoteTime;       // refresh coyote
+            _coyoteTimer = _coyoteTime;
             _jumpsRemaining = _maxJumps;
-            _playerLocomotionState.Anim.SetBool("OnGround", true);
+
+            SetAnimBool("OnGround", true);
         }
-        if(((1 << collision.gameObject.layer) & _ceilingLayer) != 0)
+
+        if (((1 << collision.gameObject.layer) & _ceilingLayer) != 0)
         {
-            _playerLocomotionState.Rb.linearVelocityY = 0;
-            //Physics2D.gravity = new Vector2(Physics2D.gravity.x,0);
+            rb.linearVelocity = new Vector2(rb.linearVelocity.x, 0f);
             _isBeforeFalling = true;
-            _playerLocomotionState.Anim.SetTrigger("JumpToFall");
+
+            SetAnimTrigger("JumpToFall");
             _timeBeforeFallingTimer = _timeBeforeFalling;
             _jumpBufferTimer = 0f;
-            Debug.Log("<color=blue>touch ceiling</color>");
         }
     }
 
     private void OnTriggerExit2D(Collider2D collision)
     {
+        if (!HasAuthority()) return;
+
+        var rb = _playerLocomotionState.Rb;
+
         if (((1 << collision.gameObject.layer) & _groundLayer) != 0)
         {
-            // No longer touching ground
             _playerLocomotionState.IsGrounded = false;
-            _playerLocomotionState.Anim.SetBool("OnGround", false);
-            if(!_playerLocomotionState.IsJumping)
+            SetAnimBool("OnGround", false);
+
+            if (!_playerLocomotionState.IsJumping)
             {
-                _playerLocomotionState.Rb.linearVelocityY = 0;
-                Physics2D.gravity = new Vector2(Physics2D.gravity.x, 0);
+                rb.linearVelocity = new Vector2(rb.linearVelocity.x, 0f);
+                rb.gravityScale = 0f;
                 _isBeforeFalling = true;
-                _playerLocomotionState.Anim.SetTrigger("JumpToFall");
+
+                SetAnimTrigger("JumpToFall");
                 _timeBeforeFallingTimer = _timeBeforeFalling;
-                Debug.Log("<color=blue>before falling</color>");
             }
         }
+    }
+
+    // --- helpers ---
+    private void SetAnimTrigger(string trigger)
+    {
+        if (_playerLocomotionState.Anim != null)
+            _playerLocomotionState.Anim.SetTrigger(trigger);
+    }
+
+    private void SetAnimBool(string param, bool value)
+    {
+        if (_playerLocomotionState.Anim != null)
+            _playerLocomotionState.Anim.SetBool(param, value);
+    }
+
+    private bool HasAuthority()
+    {
+        // If this script is run under a NetworkBehaviour wrapper,
+        // check Object.HasStateAuthority. For now return true in single-player.
+        return true;
     }
 }

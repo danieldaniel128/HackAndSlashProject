@@ -84,7 +84,6 @@ public class PlayerController : MonoBehaviour
     {
         // Movement input
         _playerLocomotionState.MoveInput = input.MoveX;
-        Debug.Log(input.MoveX);
         if (Mathf.Abs(_playerLocomotionState.MoveInput) < 0.35f)
             _playerLocomotionState.MoveInput = 0;
 
@@ -108,6 +107,7 @@ public class PlayerController : MonoBehaviour
     {
         // Run the same logic you had in FixedUpdate
         _moveAction.MovementFixed(deltaTime);
+        _dashAction.HandleDash(deltaTime);
         _jumpAction.HandleFall(deltaTime);
         _jumpAction.HandleJump(deltaTime);
     }

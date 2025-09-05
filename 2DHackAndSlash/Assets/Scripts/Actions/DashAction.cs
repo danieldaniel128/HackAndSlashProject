@@ -24,12 +24,12 @@ public class DashAction : PlayerAction
             _playerLocomotionState.Anim.SetTrigger("Dash");
         }
     }
-    public void HandleDash()
+    public void HandleDash(float dt)
     {
         // ---- Dash state update ----
         if(!_canDash)
             if (_dashInactiveTimer > 0f)
-                _dashInactiveTimer -= Time.deltaTime;
+                _dashInactiveTimer -= dt;
             else
             {
                 _dashInactiveTimer = _dashCooldown;
@@ -38,7 +38,7 @@ public class DashAction : PlayerAction
         if (_playerLocomotionState.HasDashed)
             if (_dashDurationTimer > 0f)
             {
-                _dashDurationTimer -= Time.deltaTime;
+                _dashDurationTimer -= dt;
                 if (_dashDurationTimer <= 0f)
                 {
                     _dashDurationTimer = _dashDuration; // Start cooldown timer

@@ -88,9 +88,9 @@ public class GameSpawner : RunnerCallbacksBase
             data.MoveX = (Keyboard.current.aKey.isPressed ? -1 :
                          Keyboard.current.dKey.isPressed ? 1 : 0);
 
-            data.JumpPressed = Keyboard.current.spaceKey.wasPressedThisFrame;
+            data.JumpPressed = Keyboard.current.spaceKey.isPressed;
             data.JumpHeld = Keyboard.current.spaceKey.isPressed;
-            data.DashPressed = Keyboard.current.leftShiftKey.wasPressedThisFrame;
+            data.DashPressed = Keyboard.current.leftShiftKey.isPressed;
         }
 
         input.Set(data);
