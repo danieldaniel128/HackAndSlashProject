@@ -236,7 +236,6 @@ MonoBehaviour:
     LastMoveInputNot0: 1
     CurrentVelocityX: 0
     DashPower: 5
-    DashMaxSpeedBoost: 4
     DashDir: 1
     HasDashed: 0
     IsJumpHeld: 0
@@ -245,9 +244,10 @@ MonoBehaviour:
   _jumpForce: 12
   _maxJumps: 2
   _coyoteTime: 0.14
-  _jumpBuffer: 0.1
+  _jumpBuffer: 3
   _fallGravityMultiplier: 3
   _lowJumpMultiplier: 2
+  _secondJumpMultiplier: 0.774
   _timeBeforeFalling: 0.1
   _groundLayer:
     serializedVersion: 2
@@ -877,6 +877,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 683367586}
+  - {fileID: 1271020306}
   - {fileID: 175571049}
   - {fileID: 1377223250}
   - {fileID: 519420032}
@@ -908,8 +909,7 @@ MonoBehaviour:
     MoveInput: 0
     LastMoveInputNot0: 1
     CurrentVelocityX: 0
-    DashPower: 8
-    DashMaxSpeedBoost: 5
+    DashPower: 20
     DashDir: 1
     HasDashed: 0
     IsJumpHeld: 0
@@ -918,6 +918,7 @@ MonoBehaviour:
   _moveAction: {fileID: 683367585}
   _jumpAction: {fileID: 175571050}
   _dashAction: {fileID: 1377223249}
+  _attackAction: {fileID: 1271020307}
 --- !u!114 &588249117
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1032,6 +1033,22 @@ MonoBehaviour:
         m_CallState: 2
     m_ActionId: 41d17437-bec8-4b07-aca3-e85279437f4d
     m_ActionName: 'Player/Move[/Keyboard/a,/Keyboard/d]'
+  - m_PersistentCalls:
+      m_Calls:
+      - m_Target: {fileID: 588249116}
+        m_TargetAssemblyTypeName: PlayerController, Assembly-CSharp
+        m_MethodName: OnAttack
+        m_Mode: 0
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
+    m_ActionId: dbfcc8ba-e1f1-4cb4-8a66-2a98992cd11d
+    m_ActionName: 'Player/Attack[/Keyboard/v]'
   m_NeverAutoSwitchControlSchemes: 0
   m_DefaultControlScheme: 
   m_DefaultActionMap: Player
@@ -1191,7 +1208,6 @@ MonoBehaviour:
     LastMoveInputNot0: 0
     CurrentVelocityX: 0
     DashPower: 10
-    DashMaxSpeedBoost: 0
     DashDir: 0
     HasDashed: 0
     IsJumpHeld: 0
@@ -1222,6 +1238,73 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 3489680663210205081, guid: a3bee6725d2f8504c9148863c7105780, type: 3}
   m_PrefabInstance: {fileID: 2062861687}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1271020305
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1271020306}
+  - component: {fileID: 1271020307}
+  m_Layer: 0
+  m_Name: AttackAction
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1271020306
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1271020305}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 588249115}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1271020307
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1271020305}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d4bcc588e8b46804a8025ed735355778, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _playerLocomotionState:
+    Rb: {fileID: 0}
+    Animator: {fileID: 0}
+    Anim: {fileID: 0}
+    Acceleration: 0
+    Deceleration: 0
+    StopEpsilon: 0
+    MinMaxSpeed: {x: 0, y: 0}
+    YSpeedModifier: 1
+    InputLocked: 0
+    MoveInput: 0
+    LastMoveInputNot0: 0
+    CurrentVelocityX: 0
+    DashPower: 10
+    DashDir: 0
+    HasDashed: 0
+    IsJumpHeld: 0
+    IsGrounded: 0
+    IsJumping: 0
+  _damage: 1
+  _cooldown: 0.7
+  _attackTimer: 0
+  _hasAttacked: 0
 --- !u!4 &1352956136 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 3489680663210205081, guid: a3bee6725d2f8504c9148863c7105780, type: 3}
@@ -1270,7 +1353,6 @@ MonoBehaviour:
     LastMoveInputNot0: 0
     CurrentVelocityX: 0
     DashPower: 10
-    DashMaxSpeedBoost: 0
     DashDir: 0
     HasDashed: 0
     IsJumpHeld: 0

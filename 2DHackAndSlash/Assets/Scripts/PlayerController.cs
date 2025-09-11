@@ -12,21 +12,24 @@ public class PlayerController : MonoBehaviour
     [SerializeField] MoveAction _moveAction;
     [SerializeField] JumpAction _jumpAction;
     [SerializeField] DashAction _dashAction;
-
+    [SerializeField] AttackAction _attackAction;
     private void Awake()
     {
         _moveAction.InitAction(_playerLocomotionState);
         _jumpAction.InitAction(_playerLocomotionState);
         _dashAction.InitAction(_playerLocomotionState);
+        _attackAction.InitAction(_playerLocomotionState);
     }
     void Update()
     {
         _dashAction.HandleDash();
+        _attackAction.HandleAttack();
         RotatePlayer();
     }
 
     void FixedUpdate()
     {
+        _dashAction.Dash();
         _moveAction.MovementFixed(Time.fixedDeltaTime);
         _jumpAction.HandleFall(Time.fixedDeltaTime);
         _jumpAction.HandleJump(Time.fixedDeltaTime);
@@ -58,6 +61,12 @@ public class PlayerController : MonoBehaviour
         if (!ctx.performed)
             return;
         _dashAction.TryDash();
+    }
+    public void OnAttack(InputAction.CallbackContext ctx)
+    {
+        if (!ctx.performed)
+            return;
+        _attackAction.Attack();
     }
     private void RotatePlayer()
     {
@@ -105,7 +114,6 @@ public class PlayerLocomotion
 
     [Header("Dash Settings")]
     public float DashPower = 10f;
-    public int DashMaxSpeedBoost;
     [ReadOnly] public int DashDir;              // direction chosen for dash
     [ReadOnly] public bool HasDashed = false;        // “is dashing this frame?”
 

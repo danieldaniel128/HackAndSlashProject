@@ -9,6 +9,7 @@ public class JumpAction : PlayerAction
     [SerializeField] private float _jumpBuffer = 0.1f;      // Buffer for input before landing
     [SerializeField] private float _fallGravityMultiplier = 2f; // Faster fall for snappy jumps
     [SerializeField] private float _lowJumpMultiplier = 2f;     // Extra gravity if player releases jump early
+    [SerializeField, Range(0, 1)] private float _secondJumpMultiplier;
     [SerializeField] private float _timeBeforeFalling = 3f; // Time after jump before falling animation
     [SerializeField] private LayerMask _groundLayer; // assign in inspector
     [SerializeField] private LayerMask _ceilingLayer;
@@ -37,7 +38,10 @@ public class JumpAction : PlayerAction
     /// </summary>
     public void TryJump()
     {
-        _jumpBufferTimer = _jumpBuffer; // reset buffer
+        if (((_coyoteTimer > 0f && _jumpsRemaining == 1) || (_maxJumps >= 2 && 1 <= _jumpsRemaining)))
+        {
+            DoJump();
+        }
     }
 
     /// <summary>
@@ -46,6 +50,10 @@ public class JumpAction : PlayerAction
     /// </summary>
     public void HandleJump(float dt)
     {
+        if (_playerLocomotionState.InputLocked)
+            return;
+        else if (Physics2D.gravity.y == 0 && _isBeforeFalling == false)
+            Physics2D.gravity = new Vector2(Physics2D.gravity.x, _gravityInitValue);
         Rigidbody2D rb = _playerLocomotionState.Rb;
         // --- Update timers ---
         if (!_playerLocomotionState.IsGrounded && _coyoteTimer > 0f)
@@ -54,15 +62,7 @@ public class JumpAction : PlayerAction
             if (_coyoteTimer <= 0f)
             {
                 _coyoteTimer = 0f; // clamp
-                if(_jumpsRemaining > 1)
-                    _jumpsRemaining--;
             }
-        }
-        if (_jumpBufferTimer > 0f)
-        {
-            _jumpBufferTimer -= dt;
-            if (_jumpBufferTimer <= 0f)
-                _jumpBufferTimer = 0f;
         }
         if (_isBeforeFalling)
         {
@@ -80,16 +80,11 @@ public class JumpAction : PlayerAction
             }
         }
         // --- Perform jump if buffered and allowed ---
-        if (_jumpBufferTimer > 0f && ((_coyoteTimer > 0f && _jumpsRemaining == 1) || (_maxJumps >= 2 && 1 <= _jumpsRemaining)))
-        {
-            DoJump();
-            _jumpBufferTimer = 0f; // consume buffer
-        }
     }
     public void HandleFall(float dt)
     {
         Rigidbody2D rb = _playerLocomotionState.Rb;
-        if (!_isBeforeFalling &&  0 < rb.linearVelocityY && rb.linearVelocityY <= _stopEpsilon && _playerLocomotionState.IsJumping == true)
+        if (!_isBeforeFalling &&  0 <= rb.linearVelocityY && rb.linearVelocityY <= _stopEpsilon && _playerLocomotionState.IsJumping == true)
         {
             rb.linearVelocityY = 0;
             Physics2D.gravity = new Vector2(Physics2D.gravity.x,0);
@@ -101,12 +96,14 @@ public class JumpAction : PlayerAction
         // --- Apply variable gravity for better feel ---
         else if (_isFalling) // falling
         {
+            Physics2D.gravity = new Vector2(Physics2D.gravity.x, _gravityInitValue);
             rb.linearVelocity += Vector2.up * Physics2D.gravity.y * (_fallGravityMultiplier - 1f) * dt;
             Debug.Log("<color=red>falling</color>");
         }
         else if (rb.linearVelocityY > 0 && !_playerLocomotionState.IsJumpHeld) // rising but jump released
         {
             rb.linearVelocity += Vector2.up * Physics2D.gravity.y * (_lowJumpMultiplier - 1f) * dt;
+            Debug.Log("<color=yellow>low jump</color>");
         }
     }
 
@@ -117,9 +114,11 @@ public class JumpAction : PlayerAction
     {
         Rigidbody2D rb = _playerLocomotionState.Rb;
         rb.linearVelocity = new Vector2(rb.linearVelocityX, 0f); // reset vertical before jump
-        rb.linearVelocity += Vector2.up * _jumpForce;   // add jump impulse
+        rb.linearVelocity += Vector2.up * _jumpForce * ((_maxJumps == 2 && _jumpsRemaining == 1) ? _secondJumpMultiplier : 1);   // add jump impulse
         _playerLocomotionState.IsJumping = true;
-
+        _timeBeforeFallingTimer = 0f; // clamp
+        _isBeforeFalling = false;
+        _isFalling = false;
         _coyoteTimer = 0f;     // consume coyote time
         _jumpsRemaining--;     // consume jump
         _playerLocomotionState.Anim.SetTrigger("Jump");
