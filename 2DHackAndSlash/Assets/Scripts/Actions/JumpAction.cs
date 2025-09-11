@@ -3,17 +3,19 @@ using UnityEngine;
 public class JumpAction : PlayerAction
 {
     [Header("Jump Settings")]
+    [Header("Multipliers")]
+    [SerializeField] private float _fallGravityMultiplier = 2f; // Faster fall for snappy jumps
+    [SerializeField] private float _jumpMultiplier = 2f;     // Extra gravity if player releases jump early
+
+    [SerializeField, Range(0, 1)] private float _secondJumpMultiplier;
+    [Header("Settings")]
     [SerializeField] private float _jumpForce = 12f;        // Initial upward force
     [SerializeField] private int _maxJumps = 1;             // e.g., 2 for double jump
     [SerializeField] private float _coyoteTime = 0.15f;     // Grace time after leaving ground
-    [SerializeField] private float _jumpBuffer = 0.1f;      // Buffer for input before landing
-    [SerializeField] private float _fallGravityMultiplier = 2f; // Faster fall for snappy jumps
-    [SerializeField] private float _lowJumpMultiplier = 2f;     // Extra gravity if player releases jump early
-    [SerializeField, Range(0, 1)] private float _secondJumpMultiplier;
     [SerializeField] private float _timeBeforeFalling = 3f; // Time after jump before falling animation
+    [SerializeField] float _stopEpsilon = 0.3f;
     [SerializeField] private LayerMask _groundLayer; // assign in inspector
     [SerializeField] private LayerMask _ceilingLayer;
-    [SerializeField] float _stopEpsilon = 0.3f;
 
     [Header("Runtime")]
     [SerializeField, ReadOnly] private int _jumpsRemaining;
@@ -26,6 +28,7 @@ public class JumpAction : PlayerAction
     [SerializeField, ReadOnly] bool _isJumpHeld;
     [SerializeField ,ReadOnly] bool _isGrounded;
     [SerializeField ,ReadOnly] bool _isJumping;
+    private bool _jumpHeldLastFrame;
     private float _gravityInitValue;
     private void Start()
     {
@@ -71,7 +74,7 @@ public class JumpAction : PlayerAction
         {
             _timeBeforeFallingTimer -= dt;
             rb.linearVelocityY = 0;
-            //Debug.Log("<color=lightblue>before falling</color>");
+            Debug.Log("<color=lightblue>before falling</color>");
             if (_timeBeforeFallingTimer <= 0f)
             {
                 _timeBeforeFallingTimer = 0f; // clamp
@@ -79,7 +82,7 @@ public class JumpAction : PlayerAction
                 _isFalling = true;
                 _playerLocomotionState.Anim.SetTrigger("Falling");
                 Physics2D.gravity = new Vector2(Physics2D.gravity.x, _gravityInitValue);
-                //Debug.Log("<color=red>start falling</color>");
+                Debug.Log("<color=red>start falling</color>");
             }
         }
         // --- Perform jump if buffered and allowed ---
@@ -87,26 +90,28 @@ public class JumpAction : PlayerAction
     public void HandleFall(float dt)
     {
         Rigidbody2D rb = _playerLocomotionState.Rb;
-        if (!_isBeforeFalling &&  0 <= rb.linearVelocityY && rb.linearVelocityY <= _stopEpsilon && _isJumping == true)
+        if (!_isBeforeFalling && ((!_isJumpHeld && _jumpHeldLastFrame) || (0 <= rb.linearVelocityY && rb.linearVelocityY <= _stopEpsilon)) && _isJumping)
         {
+            Debug.Log($"<color=green>{(!_isJumpHeld && _jumpHeldLastFrame)}</color>");
+            _jumpHeldLastFrame = false;
             rb.linearVelocityY = 0;
-            Physics2D.gravity = new Vector2(Physics2D.gravity.x,0);
+            Physics2D.gravity = new Vector2(Physics2D.gravity.x, 0);
             _isBeforeFalling = true;
             _playerLocomotionState.Anim.SetTrigger("JumpToFall");
             _timeBeforeFallingTimer = _timeBeforeFalling;
-            //Debug.Log("<color=blue>before falling</color>");
+            Debug.Log("<color=blue>before falling</color>");
         }
         // --- Apply variable gravity for better feel ---
         else if (_isFalling) // falling
         {
-            Physics2D.gravity = new Vector2(Physics2D.gravity.x, _gravityInitValue);
-            rb.linearVelocity += Vector2.up * Physics2D.gravity.y * (_fallGravityMultiplier - 1f) * dt;
-            //Debug.Log("<color=red>falling</color>");
+            rb.linearVelocity += Vector2.up * Physics2D.gravity.y * _fallGravityMultiplier * dt;
+            Debug.Log("<color=red>falling</color>");
         }
-        else if (rb.linearVelocityY > 0 && !_isJumpHeld) // rising but jump released
+        else if (rb.linearVelocityY > 0)//v= v0 +at
         {
-            rb.linearVelocity += Vector2.up * Physics2D.gravity.y * (_lowJumpMultiplier - 1f) * dt;
-            //Debug.Log("<color=yellow>low jump</color>");
+            rb.linearVelocity += Vector2.up * Physics2D.gravity.y * _jumpMultiplier * dt;
+            Debug.Log($"<color=yellow>low jump</color>");
+           // Debug.Log("<color=yellow>low jump</color>");
         }
     }
 
@@ -173,5 +178,7 @@ public class JumpAction : PlayerAction
     public void SetJumpHeld(bool isJumpHeld) 
     {
         _isJumpHeld = isJumpHeld;
+        if(_isJumpHeld)
+            _jumpHeldLastFrame = true;
     }
 }
