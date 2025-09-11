@@ -2,8 +2,10 @@ using UnityEngine;
 
 public class AttackAction : PlayerAction
 {
+    [Header("Attack Settings")]
     [SerializeField] float _damage;
     [SerializeField] float _cooldown;
+    [Header("Runtime")]
     [SerializeField, ReadOnly] float _attackTimer;
     [SerializeField, ReadOnly] bool _hasAttacked;
     private void Start()

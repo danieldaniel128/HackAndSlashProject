@@ -2,14 +2,18 @@ using UnityEngine;
 
 public class DashAction : PlayerAction
 {
+    [Header("Dash Settings")]
+    [SerializeField] float _dashPower = 10f;
     [SerializeField] float _dashDuration;
     [SerializeField] float _dashCooldown;
-    [Header("Read-Only Params")]
+    [Header("Runtime")]
+    [SerializeField, ReadOnly] int _dashDir;                // direction chosen for dash
     [SerializeField, ReadOnly] float _dashDurationTimer;
     [SerializeField, ReadOnly] float _dashInactiveTimer;
-    [SerializeField, ReadOnly] bool _canDash = true; // Can dash if true, otherwise false
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    [SerializeField, ReadOnly] private float _dashProgress;
+    [SerializeField, ReadOnly] bool _hasDashed = false;
+    [SerializeField, ReadOnly] bool _canDash = true;        // Can dash if true, otherwise false
+    [SerializeField, ReadOnly] private float _dashProgress; //for ui
+
     private void Start()
     {
         _dashDurationTimer = _dashDuration; // Reset dash duration timer when not dashing
@@ -20,8 +24,8 @@ public class DashAction : PlayerAction
         if (_canDash)
         {
             _canDash = false; // Start dash cooldown
-            Debug.Log("<color=white>dashed</color>");
-            _playerLocomotionState.HasDashed = true;
+            //Debug.Log("<color=white>dashed</color>");
+            _hasDashed = true;
             _playerLocomotionState.Anim.SetTrigger("Dash");
             Dash();
         }
@@ -38,17 +42,16 @@ public class DashAction : PlayerAction
                 _dashInactiveTimer = _dashCooldown;
                 _canDash = true; // Reset dash cooldown
             }
-        if (pL.HasDashed)
+        if (_hasDashed)
             if (_dashDurationTimer > 0f)
             {
                 _dashDurationTimer -= Time.deltaTime;
                 if (_dashDurationTimer <= 0f)
                 {
                     _dashDurationTimer = _dashDuration; // Start cooldown timer
-                    pL.HasDashed = false; // Reset dash state
+                    _hasDashed = false; // Reset dash state
                     pL.InputLocked = false; // Unlock input when dash ends
-                    pL.CurrentVelocityX = 0;
-                    Debug.Log("<color=white>ended dash</color>");
+                    //Debug.Log("<color=white>ended dash</color>");
                 }
                 //invert the progress so it goes from 0 to 1
                 _dashProgress = 1f - (_dashDurationTimer / _dashDuration);
@@ -56,7 +59,7 @@ public class DashAction : PlayerAction
     }
     public void Dash()
     {
-        if (!_playerLocomotionState.HasDashed)
+        if (!_hasDashed)
             return;
         PlayerLocomotion pL = _playerLocomotionState;
         Rigidbody2D rb = pL.Rb;
@@ -65,21 +68,19 @@ public class DashAction : PlayerAction
         // Decide which direction to dash:
         // 1. If there is live input, use that
         // 2. Else, use the last non-zero input
-        // 3. Else, if still moving, use current velocity sign
         // 4. Else, default to right (1)
         float dashDir =
             (moveInput != 0 ? moveInput :
-            (pL.LastMoveInputNot0 != 0 ? pL.LastMoveInputNot0 :
-            (pL.CurrentVelocityX > 0.0001f ? pL.CurrentVelocityX : 1)));
+            (pL.LastMoveInputNot0 != 0 ? pL.LastMoveInputNot0 : 1));
+
 
         // Store the dash direction as an integer (-1 or +1)
-        pL.DashDir = (int)dashDir;
+        _dashDir = (int)dashDir;
 
         // Pre-calculate dash velocity (impulse)
-        float _dashVelocity = dashDir * pL.DashPower;
+        float _dashVelocity = _dashDir * _dashPower;
 
-        float vx = dashDir * pL.DashPower; //dash velocity vector
-        pL.CurrentVelocityX = vx;
+        float vx = dashDir * _dashPower; //dash velocity vector
 
         rb.linearVelocity = new Vector2(vx, 0);
         Physics2D.gravity = new Vector2(Physics2D.gravity.x, 0);

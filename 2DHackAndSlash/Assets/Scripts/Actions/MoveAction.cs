@@ -2,6 +2,14 @@ using UnityEngine;
 
 public class MoveAction : PlayerAction
 {
+    [Header("Movement Settings")]
+    [SerializeField] private float _acceleration;
+    [SerializeField] private float _deceleration;
+    [SerializeField] private float _stopEpsilon;
+    [SerializeField] private Vector2 _minMaxSpeed;
+    [Header("Runtime")]
+    [SerializeField, ReadOnly] float CurrentVelocityX;       // move velocity (no dash)
+
     public void MovementFixed(float dt)
     {
         PlayerLocomotion pL = _playerLocomotionState;
@@ -18,34 +26,34 @@ public class MoveAction : PlayerAction
         if (Mathf.Abs(moveInput) > 0f)
         {
             // Accelerate horizontally
-            _playerLocomotionState.CurrentVelocityX += moveInput * _playerLocomotionState.Acceleration * dt;
+            CurrentVelocityX += moveInput * _acceleration * dt;
 
             // Clamp speed between Min and Max (allowing extra speed if dashed)
-            float absCurrentVelocity = Mathf.Abs(_playerLocomotionState.CurrentVelocityX);
+            float absCurrentVelocity = Mathf.Abs(CurrentVelocityX);
             float clampedMag = Mathf.Clamp(
                 absCurrentVelocity,
-                _playerLocomotionState.MinMaxSpeed.x,
-                _playerLocomotionState.MinMaxSpeed.y
+                _minMaxSpeed.x,
+                _minMaxSpeed.y
             );
 
             // Final velocity = input direction * clamped speed
             float desiredVel = moveInput * clampedMag;
-            _playerLocomotionState.CurrentVelocityX = desiredVel;
+            CurrentVelocityX = desiredVel;
         }
         else
         {
-            float absCurrentVelocity = Mathf.Abs(_playerLocomotionState.CurrentVelocityX);
+            float absCurrentVelocity = Mathf.Abs(CurrentVelocityX);
             // --- NO INPUT: DECELERATE ---
-            if (absCurrentVelocity <= _playerLocomotionState.StopEpsilon)
+            if (absCurrentVelocity <= _stopEpsilon)
             {
                 // Snap to 0 when very slow (prevents sliding forever)
-                _playerLocomotionState.CurrentVelocityX = 0;
+                CurrentVelocityX = 0;
             }
             else
             {
                 // Gradually slow down
-                _playerLocomotionState.CurrentVelocityX +=
-                    (-_playerLocomotionState.LastMoveInputNot0 * _playerLocomotionState.Deceleration * dt);
+                CurrentVelocityX +=
+                    (-_playerLocomotionState.LastMoveInputNot0 * _deceleration * dt);
             }
         }
 
@@ -53,7 +61,7 @@ public class MoveAction : PlayerAction
         // Keep current Y velocity from Rigidbody (jump/fall unaffected)
         // Add dash impulse if HasDashed is true
         _playerLocomotionState.Rb.linearVelocity =
-            new Vector2(_playerLocomotionState.CurrentVelocityX, rb.linearVelocityY);
+            new Vector2(CurrentVelocityX, rb.linearVelocityY);
 
         // Update animator with movement speed
         _playerLocomotionState?.Animator?.GroundedMovementAnimationUpdate(_playerLocomotionState.Rb.linearVelocity.magnitude);
@@ -61,6 +69,10 @@ public class MoveAction : PlayerAction
         // Save last non-zero input for dash direction fallback
         if (_playerLocomotionState.MoveInput != 0)
             _playerLocomotionState.LastMoveInputNot0 = moveInput;
-        _playerLocomotionState.Anim.SetBool("IsRunning", Mathf.Abs(_playerLocomotionState.CurrentVelocityX) > 0 ? true : false);
+        _playerLocomotionState.Anim.SetBool("IsRunning", Mathf.Abs(CurrentVelocityX) > 0 ? true : false);
+    }
+    public void SetCurrentVelocity0()
+    {
+
     }
 }

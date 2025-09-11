@@ -50,11 +50,11 @@ public class PlayerController : MonoBehaviour
     public void OnJump(InputAction.CallbackContext ctx)
     {
         if (ctx.started)
-            _playerLocomotionState.IsJumpHeld = true;
+            _jumpAction.SetJumpHeld(true);
         else if (ctx.performed)
             _jumpAction.TryJump();
         else if (ctx.canceled)
-            _playerLocomotionState.IsJumpHeld = false;
+            _jumpAction.SetJumpHeld(false);
     }
     public void OnDash(InputAction.CallbackContext ctx)
     {
@@ -97,29 +97,14 @@ public class PlayerLocomotion
     public Rigidbody2D Rb;
     public SpineAnimationController Animator;
     public Animator Anim;
-    [Header("Movement Settings")]
-    public float Acceleration;
-    public float Deceleration;
-    public float StopEpsilon;
-    public Vector2 MinMaxSpeed;
-    public float YSpeedModifier = 1f;
-
-    // Dash config
-
+  
     // Runtime
     [ReadOnly] public bool InputLocked;
     [ReadOnly] public float MoveInput;             // current frame input
     [ReadOnly] public float LastMoveInputNot0;     // cached non-zero input
-    [ReadOnly] public float CurrentVelocityX;       // move velocity (no dash)
 
-    [Header("Dash Settings")]
-    public float DashPower = 10f;
-    [ReadOnly] public int DashDir;              // direction chosen for dash
-    [ReadOnly] public bool HasDashed = false;        // “is dashing this frame?”
+          // “is dashing this frame?”
 
-    [Header("Jump Settings")]
-    [ReadOnly] public bool IsJumpHeld;
-    [ReadOnly] public bool IsGrounded;
-    [ReadOnly] public bool IsJumping;
+    
     //[ReadOnly] public ProcessStation ProcessedStation;
 }

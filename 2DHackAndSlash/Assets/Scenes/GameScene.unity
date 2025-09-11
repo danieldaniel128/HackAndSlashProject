@@ -226,24 +226,12 @@ MonoBehaviour:
     Rb: {fileID: 588249118}
     Animator: {fileID: 0}
     Anim: {fileID: 0}
-    Acceleration: 12
-    Deceleration: 24
-    StopEpsilon: 0.3
-    MinMaxSpeed: {x: 4, y: 8}
-    YSpeedModifier: 1
     InputLocked: 0
     MoveInput: 0
     LastMoveInputNot0: 1
-    CurrentVelocityX: 0
-    DashPower: 5
-    DashDir: 1
-    HasDashed: 0
-    IsJumpHeld: 0
-    IsGrounded: 1
-    IsJumping: 0
   _jumpForce: 12
-  _maxJumps: 2
-  _coyoteTime: 0.14
+  _maxJumps: 1
+  _coyoteTime: 0.18
   _jumpBuffer: 3
   _fallGravityMultiplier: 3
   _lowJumpMultiplier: 2
@@ -258,10 +246,12 @@ MonoBehaviour:
   _stopEpsilon: 0.3
   _jumpsRemaining: 1
   _coyoteTimer: 0.15
-  _jumpBufferTimer: 0
   _timeBeforeFallingTimer: 0
   _isBeforeFalling: 0
   _isFalling: 0
+  _isJumpHeld: 0
+  _isGrounded: 0
+  _isJumping: 0
 --- !u!61 &175571051
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -900,21 +890,9 @@ MonoBehaviour:
     Rb: {fileID: 588249118}
     Animator: {fileID: 0}
     Anim: {fileID: 284427182}
-    Acceleration: 12
-    Deceleration: 24
-    StopEpsilon: 0.3
-    MinMaxSpeed: {x: 4, y: 8}
-    YSpeedModifier: 1
     InputLocked: 0
     MoveInput: 0
     LastMoveInputNot0: 1
-    CurrentVelocityX: 0
-    DashPower: 20
-    DashDir: 1
-    HasDashed: 0
-    IsJumpHeld: 0
-    IsGrounded: 1
-    IsJumping: 0
   _moveAction: {fileID: 683367585}
   _jumpAction: {fileID: 175571050}
   _dashAction: {fileID: 1377223249}
@@ -1198,21 +1176,14 @@ MonoBehaviour:
     Rb: {fileID: 0}
     Animator: {fileID: 0}
     Anim: {fileID: 0}
-    Acceleration: 0
-    Deceleration: 0
-    StopEpsilon: 0
-    MinMaxSpeed: {x: 0, y: 0}
-    YSpeedModifier: 1
     InputLocked: 0
     MoveInput: 0
     LastMoveInputNot0: 0
-    CurrentVelocityX: 0
-    DashPower: 10
-    DashDir: 0
-    HasDashed: 0
-    IsJumpHeld: 0
-    IsGrounded: 0
-    IsJumping: 0
+  _acceleration: 10
+  _deceleration: 20
+  _stopEpsilon: 0.3
+  _minMaxSpeed: {x: 6, y: 8}
+  CurrentVelocityX: 0
 --- !u!4 &683367586
 Transform:
   m_ObjectHideFlags: 0
@@ -1286,23 +1257,11 @@ MonoBehaviour:
     Rb: {fileID: 0}
     Animator: {fileID: 0}
     Anim: {fileID: 0}
-    Acceleration: 0
-    Deceleration: 0
-    StopEpsilon: 0
-    MinMaxSpeed: {x: 0, y: 0}
-    YSpeedModifier: 1
     InputLocked: 0
     MoveInput: 0
     LastMoveInputNot0: 0
-    CurrentVelocityX: 0
-    DashPower: 10
-    DashDir: 0
-    HasDashed: 0
-    IsJumpHeld: 0
-    IsGrounded: 0
-    IsJumping: 0
   _damage: 1
-  _cooldown: 0.7
+  _cooldown: 0.3
   _attackTimer: 0
   _hasAttacked: 0
 --- !u!4 &1352956136 stripped
@@ -1343,25 +1302,16 @@ MonoBehaviour:
     Rb: {fileID: 0}
     Animator: {fileID: 0}
     Anim: {fileID: 0}
-    Acceleration: 0
-    Deceleration: 0
-    StopEpsilon: 0
-    MinMaxSpeed: {x: 0, y: 0}
-    YSpeedModifier: 1
     InputLocked: 0
     MoveInput: 0
     LastMoveInputNot0: 0
-    CurrentVelocityX: 0
-    DashPower: 10
-    DashDir: 0
-    HasDashed: 0
-    IsJumpHeld: 0
-    IsGrounded: 0
-    IsJumping: 0
+  _dashPower: 20
   _dashDuration: 0.3
   _dashCooldown: 1
+  _dashDir: 0
   _dashDurationTimer: 0
   _dashInactiveTimer: 0
+  _hasDashed: 0
   _canDash: 1
   _dashProgress: 0
 --- !u!4 &1377223250
