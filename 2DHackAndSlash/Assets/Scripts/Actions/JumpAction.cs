@@ -17,6 +17,18 @@ public class JumpAction : PlayerAction
     [SerializeField] private LayerMask _groundLayer; // assign in inspector
     [SerializeField] private LayerMask _ceilingLayer;
 
+    [Header("Air Drag")]
+    [SerializeField] private float _airLinearDrag = 1.2f;     // c: scales with speed
+    [SerializeField] private float _airQuadraticDrag = 0.0f;  // k: scales with speed^2 (set >0 for stronger drag at high speed)
+    [SerializeField] private float _horizontalDragMultiplier = 0f; // extra tuning for x
+    [SerializeField] private float _verticalDragMultiplier = 1.0f;   // extra tuning for y
+    [SerializeField] private float _terminalFallSpeed = -22f;        // clamp max fall speed (downwards)
+
+    [Header("Apex Glide (Before Falling)")]
+    [SerializeField] private float _apexReleaseBoost = 1.0f;   // extra upward kick on release
+    [SerializeField] private float _apexMinUpSpeed = 0.5f;     // ensure some initial up-speed
+                                                               // Tip: set _timeBeforeFalling to ~0.08–0.18 for a tight, responsive feel (3f is huge)
+
     [Header("Runtime")]
     [SerializeField, ReadOnly] private int _jumpsRemaining;
     [SerializeField, ReadOnly] private float _coyoteTimer;
@@ -28,6 +40,10 @@ public class JumpAction : PlayerAction
     [SerializeField, ReadOnly] bool _isJumpHeld;
     [SerializeField ,ReadOnly] bool _isGrounded;
     [SerializeField ,ReadOnly] bool _isJumping;
+    [SerializeField, ReadOnly] private float _apexVyStart;
+
+
+
     private bool _jumpHeldLastFrame;
     private float _gravityInitValue;
     private void Start()
@@ -94,22 +110,20 @@ public class JumpAction : PlayerAction
         {
             Debug.Log($"<color=green>{(!_isJumpHeld && _jumpHeldLastFrame)}</color>");
             _jumpHeldLastFrame = false;
-            rb.linearVelocityY = 0;
-            Physics2D.gravity = new Vector2(Physics2D.gravity.x, 0);
-            _isBeforeFalling = true;
-            _playerLocomotionState.Anim.SetTrigger("JumpToFall");
-            _timeBeforeFallingTimer = _timeBeforeFalling;
+            EnterBeforeFalling(rb, addReleaseBoost: true);
             Debug.Log("<color=blue>before falling</color>");
         }
         // --- Apply variable gravity for better feel ---
         else if (_isFalling) // falling
         {
             rb.linearVelocity += Vector2.up * Physics2D.gravity.y * _fallGravityMultiplier * dt;
+            ApplyAirDrag(rb, dt);
             Debug.Log("<color=red>falling</color>");
         }
         else if (rb.linearVelocityY > 0)//v= v0 +at
         {
             rb.linearVelocity += Vector2.up * Physics2D.gravity.y * _jumpMultiplier * dt;
+            ApplyAirDrag(rb, dt);
             Debug.Log($"<color=yellow>low jump</color>");
            // Debug.Log("<color=yellow>low jump</color>");
         }
@@ -148,11 +162,7 @@ public class JumpAction : PlayerAction
         }
         if(((1 << collision.gameObject.layer) & _ceilingLayer) != 0)
         {
-            _playerLocomotionState.Rb.linearVelocityY = 0;
-            //Physics2D.gravity = new Vector2(Physics2D.gravity.x,0);
-            _isBeforeFalling = true;
-            _playerLocomotionState.Anim.SetTrigger("JumpToFall");
-            _timeBeforeFallingTimer = _timeBeforeFalling;
+            EnterBeforeFalling(_playerLocomotionState.Rb, addReleaseBoost: false);
             //Debug.Log("<color=blue>touch ceiling</color>");
         }
     }
@@ -166,9 +176,7 @@ public class JumpAction : PlayerAction
             _playerLocomotionState.Anim.SetBool("OnGround", false);
             if(!_isJumping)
             {
-                _playerLocomotionState.Rb.linearVelocityY = 0;
-                Physics2D.gravity = new Vector2(Physics2D.gravity.x, 0);
-                _isBeforeFalling = true;
+                EnterBeforeFalling(_playerLocomotionState.Rb, addReleaseBoost: false);
                 _playerLocomotionState.Anim.SetTrigger("JumpToFall");
                 _timeBeforeFallingTimer = _timeBeforeFalling;
                 //Debug.Log("<color=blue>before falling</color>");
@@ -180,5 +188,51 @@ public class JumpAction : PlayerAction
         _isJumpHeld = isJumpHeld;
         if(_isJumpHeld)
             _jumpHeldLastFrame = true;
+    }
+    private void ApplyAirDrag(Rigidbody2D rb, float dt)
+    {
+        // no drag if we're in the "before falling" freeze window
+        if (_isBeforeFalling) return;
+
+        Vector2 v = rb.linearVelocity;
+        float speed = v.magnitude;
+        if (speed < 0.0001f) return;
+
+        // Drag model: a = -(c * v + k * |v| * v)  (acceleration-like; units/tuning are arbitrary)
+        Vector2 vDir = v / speed;
+        float dragMag = _airLinearDrag * speed + _airQuadraticDrag * speed * speed;
+        Vector2 dragAccel = -vDir * dragMag;
+
+        // Optional axis scaling (lets you keep horizontal control while damping vertical more)
+        dragAccel = new Vector2(dragAccel.x * _horizontalDragMultiplier,
+                                dragAccel.y * _verticalDragMultiplier);
+
+        // Integrate
+        rb.linearVelocity += dragAccel * dt;
+
+        // Terminal velocity clamp (downwards only)
+        if (rb.linearVelocityY < _terminalFallSpeed)
+            rb.linearVelocityY = _terminalFallSpeed;
+    }
+    private void EnterBeforeFalling(Rigidbody2D rb, bool addReleaseBoost)
+    {
+        if (_isBeforeFalling) return;
+
+        float vy = Mathf.Max(0f, rb.linearVelocityY);
+        if (addReleaseBoost)
+            vy = Mathf.Max(vy, _apexMinUpSpeed) + _apexReleaseBoost;
+
+        _apexVyStart = vy;
+        rb.linearVelocityY = _apexVyStart;
+
+        _isBeforeFalling = true;
+        _isFalling = false;
+        _timeBeforeFallingTimer = _timeBeforeFalling;
+
+        // pause gravity globally (kept to match your current pattern)
+        Physics2D.gravity = new Vector2(Physics2D.gravity.x, 0f);
+
+        _playerLocomotionState.Anim.SetTrigger("JumpToFall");
+        // Debug.Log("<color=blue>enter BEFORE FALLING</color>");
     }
 }
