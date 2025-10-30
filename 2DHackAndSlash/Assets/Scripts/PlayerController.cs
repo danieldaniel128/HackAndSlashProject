@@ -1,110 +1,192 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
+using Stateless;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
+public enum Trigger { DashPressed, DashFinished, AttackPressed, AttackFinished, Interrupt, Update }
 [RequireComponent(typeof(Rigidbody2D))]
 [RequireComponent(typeof(PlayerInput))]
-public class PlayerController : MonoBehaviour
+public class PlayerControllerStateless : MonoBehaviour
 {
-    [SerializeField] PlayerLocomotion _playerLocomotionState;
-    [SerializeField] MoveAction _moveAction;
-    [SerializeField] JumpAction _jumpAction;
-    [SerializeField] DashAction _dashAction;
-    [SerializeField] AttackAction _attackAction;
+    // ==== Existing action components (drag in Inspector) ====
+    [SerializeField] private PlayerLocomotion _locomotion;   // same struct/class you already use
+    [SerializeField] private MoveAction _move;
+    [SerializeField] private JumpAction _jump;
+    [SerializeField] private DashAction _dash;
+    [SerializeField] private AttackAction _attack;
+
+    // ========= Finite State Machine (Stateless) =========
+    private enum State { Locomotion, Dashing, Attacking }
+
+    private StateMachine<State, Trigger> _fsm;
+
+    // Cache
+    private Rigidbody2D _rb;
+
+    // ===== Unity =====
     private void Awake()
     {
-        _moveAction.InitAction(_playerLocomotionState);
-        _jumpAction.InitAction(_playerLocomotionState);
-        _dashAction.InitAction(_playerLocomotionState);
-        _attackAction.InitAction(_playerLocomotionState);
+        _rb = GetComponent<Rigidbody2D>();
+
+        // Wire actions to the same locomotion context
+        _move.InitAction(_locomotion);
+        _jump.InitAction(_locomotion);
+        _dash.InitAction(_locomotion);
+        _attack.InitAction(_locomotion);
+
+        BuildStateMachine();
     }
-    void Update()
+
+    private void Update()
     {
-        _dashAction.HandleDash();
-        _attackAction.HandleAttack();
+        _fsm.Fire(Trigger.Update);
+        // Top-level gating by FSM
+        //switch (_fsm.State)
+        //{
+        //    case State.Locomotion:
+        //        _attack.HandleAttack(); // lets combo timer tick while moving
+        //        _dash.HandleDash();     // cooldown timer while we roam
+        //        break;
+        //    case State.Dashing:
+        //        _dash.HandleDash();
+        //        // If dash ended (DashAction clears its _hasDashed when done), fire finish
+        //        if (!_locomotion.InputLocked) // DashAction unlocks input on finish
+        //            _fsm.Fire(Trigger.DashFinished);
+        //        break;
+        //    case State.Attacking:
+        //        _attack.HandleAttack();
+        //        // If not attacking anymore (simple heuristic: animation back to locomotion)
+        //        // You can replace this with an animation event to call OnAttackAnimationEnd()
+        //        // or expose a public IsAttacking on AttackAction.
+        //        break;
+        //}
+
         RotatePlayer();
+
+        // Jump processing that needs per-frame updates
     }
 
-    void FixedUpdate()
+    private void FixedUpdate()
     {
-        _dashAction.Dash();
-        _moveAction.MovementFixed(Time.fixedDeltaTime);
-        _jumpAction.HandleFall(Time.fixedDeltaTime);
-        _jumpAction.HandleJump(Time.fixedDeltaTime);
+        // Physics-affecting behaviors gated by FSM
+        if (_fsm.State == State.Locomotion)
+        {
+            _move.MovementFixed(Time.fixedDeltaTime);
+            _jump.HandleFall(Time.fixedDeltaTime);
+        }
+        else if (_fsm.State == State.Attacking)
+        {
+            // Optional: very light drift/stop while attacking
+            _rb.linearVelocity = new Vector2(0, _rb.linearVelocityY);
+        }
+        _jump.HandleJump(Time.fixedDeltaTime);
     }
 
-
+    // ===== Input (call from PlayerInput actions) =====
     public void OnMove(InputAction.CallbackContext ctx)
     {
         if (ctx.performed)
         {
-            _playerLocomotionState.MoveInput = ctx.ReadValue<float>();
-            if (Math.Abs(_playerLocomotionState.MoveInput) < 0.35f)
-                _playerLocomotionState.MoveInput = 0; // Ignore small inputs to prevent jitter
+            _locomotion.MoveInput = ctx.ReadValue<float>();
+            if (Mathf.Abs(_locomotion.MoveInput) < 0.35f) _locomotion.MoveInput = 0f;
+            if (_locomotion.MoveInput != 0)
+                _locomotion.LastMoveInputNot0 = _locomotion.MoveInput;
         }
-        else
-            _playerLocomotionState.MoveInput = 0;
+        else if (ctx.canceled) _locomotion.MoveInput = 0f;
     }
+
     public void OnJump(InputAction.CallbackContext ctx)
     {
-        if (ctx.started)
-            _jumpAction.SetJumpHeld(true);
-        else if (ctx.performed)
-            _jumpAction.TryJump();
-        else if (ctx.canceled)
-            _jumpAction.SetJumpHeld(false);
-    }
-    public void OnDash(InputAction.CallbackContext ctx)
-    {
-        if (!ctx.performed)
+        if (_fsm.State != State.Locomotion) // no jumping during dash / attack
             return;
-        _dashAction.TryDash();
+
+        if (ctx.started) _jump.SetJumpHeld(true);
+        else if (ctx.performed) _jump.TryJump();
+        else if (ctx.canceled) _jump.SetJumpHeld(false);
     }
-    public void OnAttack(InputAction.CallbackContext ctx)
+
+    public void OnDash(InputAction.CallbackContext ctx) { if (ctx.performed) _fsm.Fire(Trigger.DashPressed); }
+    public void OnAttack(InputAction.CallbackContext ctx) { if (ctx.performed) _fsm.Fire(Trigger.AttackPressed); }
+
+    // ===== Stateless wiring =====
+    private void BuildStateMachine()
     {
-        if (!ctx.performed)
-            return;
-        _attackAction.Attack();
+        _fsm = new StateMachine<State, Trigger>(State.Locomotion);
+
+        _fsm.Configure(State.Locomotion)
+            .OnEntry(() => _locomotion.InputLocked = false)
+            .InternalTransition(Trigger.Update, () => _move.MovementFixed(Time.deltaTime))
+            .OnExit(() => { /* keep free */ })
+            .PermitIf(Trigger.DashPressed, State.Dashing, () => _dash.CanDash)
+            .Permit(Trigger.AttackPressed, State.Attacking);
+
+        _fsm.Configure(State.Dashing)
+            .OnEntry(() =>
+            {
+                _dash.OnDashEnded += OnDashEndedEvent;
+                _dash.TryDash();         // will lock input internally and zero gravity in your DashAction
+            })
+            .InternalTransition(Trigger.Update, () => _dash.HandleDash())
+            .Permit(Trigger.DashFinished, State.Locomotion)
+            .OnExit(() =>
+            {
+                // Ensure gravity restored in case dash interrupted (DashAction handles it too)
+                Physics2D.gravity = new Vector2(Physics2D.gravity.x, -9.81f);
+                _dash.OnDashEnded -= OnDashEndedEvent;
+            });
+
+        _fsm.Configure(State.Attacking)
+            .OnEntry(() =>
+            {
+                _attack.OnAttackEnded += OnAttackEndedEvent;
+                _attack.Attack();       // kicks off first hit
+                _locomotion.InputLocked = true; // freeze locomotion while attack anim plays
+            })
+            .InternalTransition(Trigger.AttackPressed, _attack.Attack)
+            .Permit(Trigger.AttackFinished, State.Locomotion)
+            .OnExit(() => 
+            {
+                _attack.OnAttackEnded -= OnAttackEndedEvent;
+                _locomotion.InputLocked = false;
+            });
+
+        _fsm.OnUnhandledTrigger((s, trig) =>
+        Debug.Log($"FSM ignored {trig} in {s}"));
+
+        _fsm.OnTransitioned(t => {
+            if (t.Source != t.Destination) // skip reentry if you want
+                Debug.Log($"[FSM] {t.Source} --{t.Trigger}--> {t.Destination} @ {Time.time:F3}s");
+        });
     }
+
+    // Call this from an Animation Event at the end of your combo clips
+    public void OnAttackAnimationEnd()
+    {
+        if (_fsm.State == State.Attacking)
+            _fsm.Fire(Trigger.AttackFinished);
+    }
+
+    // ===== Utils =====
     private void RotatePlayer()
     {
-        Vector3 newScaleRotated = transform.localScale;
-        bool rotateLeft = _playerLocomotionState.MoveInput < 0f;
-        //is idle?
-        if (_playerLocomotionState.MoveInput == 0)
-        {
-            //has moved before?
-            if (_playerLocomotionState.LastMoveInputNot0 != 0)
-            {
-                rotateLeft = _playerLocomotionState.LastMoveInputNot0 < 0f;
-                newScaleRotated.x = rotateLeft ? -1f : 1f;
-            }
-        }
-        else//isnt idle
-        {
-            newScaleRotated.x = rotateLeft ? -1f : 1f;
-        }
-        transform.localScale = newScaleRotated;
+        var scale = transform.localScale;
+        bool rotateLeft = _locomotion.MoveInput < 0f;
+
+        if (_locomotion.MoveInput == 0 && _locomotion.LastMoveInputNot0 != 0)
+            rotateLeft = _locomotion.LastMoveInputNot0 < 0f;
+
+        scale.x = rotateLeft ? -1f : 1f;
+        transform.localScale = scale;
     }
+    private void OnDashEndedEvent() => _fsm.Fire(Trigger.DashFinished);
+    private void OnAttackEndedEvent() => _fsm.Fire(Trigger.AttackFinished);
+
 }
-[System.Serializable]
+
+// Keep using your existing PlayerLocomotion definition
+[Serializable]
 public class PlayerLocomotion
 {
-    [Header("References")]
-    // External refs
-    public Rigidbody2D Rb;
-    public SpineAnimationController Animator;
-    public Animator Anim;
-  
-    // Runtime
-    [ReadOnly] public bool InputLocked;
-    [ReadOnly] public float MoveInput;             // current frame input
-    [ReadOnly] public float LastMoveInputNot0;     // cached non-zero input
-
-          // “is dashing this frame?”
-
-    
-    //[ReadOnly] public ProcessStation ProcessedStation;
+    [Header("References")] public Rigidbody2D Rb; public Animator Anim;
+    [Header("Runtime")] public bool InputLocked; public float MoveInput; public float LastMoveInputNot0;
 }

@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -14,7 +15,7 @@ public class AttackAction : PlayerAction
     [SerializeField, ReadOnly] private bool _isAttacking = false;
     [SerializeField, ReadOnly] private bool _inputQueued = false;
     [SerializeField, ReadOnly] private float _comboTimer = 0f;
-
+    public Action OnAttackEnded;
     private void Update()
     {
         HandleAttack();
@@ -37,6 +38,7 @@ public class AttackAction : PlayerAction
                 {
                     ResetCombo();
                 }
+                OnAttackEnded?.Invoke();
             }
         }
         else

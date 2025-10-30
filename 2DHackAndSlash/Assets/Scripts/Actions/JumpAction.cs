@@ -90,7 +90,7 @@ public class JumpAction : PlayerAction
         {
             _timeBeforeFallingTimer -= dt;
             rb.linearVelocityY = 0;
-            Debug.Log("<color=lightblue>before falling</color>");
+            //Debug.Log("<color=lightblue>before falling</color>");
             if (_timeBeforeFallingTimer <= 0f)
             {
                 _timeBeforeFallingTimer = 0f; // clamp
@@ -98,7 +98,7 @@ public class JumpAction : PlayerAction
                 _isFalling = true;
                 _playerLocomotionState.Anim.SetTrigger("Falling");
                 Physics2D.gravity = new Vector2(Physics2D.gravity.x, _gravityInitValue);
-                Debug.Log("<color=red>start falling</color>");
+                //Debug.Log("<color=red>start falling</color>");
             }
         }
         // --- Perform jump if buffered and allowed ---
@@ -108,23 +108,23 @@ public class JumpAction : PlayerAction
         Rigidbody2D rb = _playerLocomotionState.Rb;
         if (!_isBeforeFalling && ((!_isJumpHeld && _jumpHeldLastFrame) || (0 <= rb.linearVelocityY && rb.linearVelocityY <= _stopEpsilon)) && _isJumping)
         {
-            Debug.Log($"<color=green>{(!_isJumpHeld && _jumpHeldLastFrame)}</color>");
+            //Debug.Log($"<color=green>{(!_isJumpHeld && _jumpHeldLastFrame)}</color>");
             _jumpHeldLastFrame = false;
             EnterBeforeFalling(rb, addReleaseBoost: true);
-            Debug.Log("<color=blue>before falling</color>");
+            //Debug.Log("<color=blue>before falling</color>");
         }
         // --- Apply variable gravity for better feel ---
         else if (_isFalling) // falling
         {
             rb.linearVelocity += Vector2.up * Physics2D.gravity.y * _fallGravityMultiplier * dt;
             ApplyAirDrag(rb, dt);
-            Debug.Log("<color=red>falling</color>");
+            //Debug.Log("<color=red>falling</color>");
         }
         else if (rb.linearVelocityY > 0)//v= v0 +at
         {
             rb.linearVelocity += Vector2.up * Physics2D.gravity.y * _jumpMultiplier * dt;
             ApplyAirDrag(rb, dt);
-            Debug.Log($"<color=yellow>low jump</color>");
+            //Debug.Log($"<color=yellow>low jump</color>");
            // Debug.Log("<color=yellow>low jump</color>");
         }
     }

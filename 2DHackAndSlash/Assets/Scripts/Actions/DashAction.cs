@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 public class DashAction : PlayerAction
@@ -13,6 +14,9 @@ public class DashAction : PlayerAction
     [SerializeField, ReadOnly] bool _hasDashed = false;
     [SerializeField, ReadOnly] bool _canDash = true;        // Can dash if true, otherwise false
     [SerializeField, ReadOnly] private float _dashProgress; //for ui
+
+    public Action OnDashEnded;
+    public bool CanDash => _canDash;
 
     private void Start()
     {
@@ -30,9 +34,8 @@ public class DashAction : PlayerAction
             Dash();
         }
     }
-    public void HandleDash()
+    private void Update()
     {
-        PlayerLocomotion pL = _playerLocomotionState;
         // ---- Dash state update ----
         if (!_canDash)
             if (_dashInactiveTimer > 0f)
@@ -42,6 +45,11 @@ public class DashAction : PlayerAction
                 _dashInactiveTimer = _dashCooldown;
                 _canDash = true; // Reset dash cooldown
             }
+    }
+    public void HandleDash()
+    {
+        PlayerLocomotion pL = _playerLocomotionState;
+        
         if (_hasDashed)
             if (_dashDurationTimer > 0f)
             {
@@ -51,6 +59,7 @@ public class DashAction : PlayerAction
                     _dashDurationTimer = _dashDuration; // Start cooldown timer
                     _hasDashed = false; // Reset dash state
                     pL.InputLocked = false; // Unlock input when dash ends
+                    OnDashEnded?.Invoke();
                     //Debug.Log("<color=white>ended dash</color>");
                 }
                 //invert the progress so it goes from 0 to 1

@@ -64,7 +64,7 @@ public class MoveAction : PlayerAction
             new Vector2(CurrentVelocityX, rb.linearVelocityY);
 
         // Update animator with movement speed
-        _playerLocomotionState?.Animator?.GroundedMovementAnimationUpdate(_playerLocomotionState.Rb.linearVelocity.magnitude);
+        //_playerLocomotionState?.Animator?.GroundedMovementAnimationUpdate(_playerLocomotionState.Rb.linearVelocity.magnitude);
 
         // Save last non-zero input for dash direction fallback
         if (_playerLocomotionState.MoveInput != 0)

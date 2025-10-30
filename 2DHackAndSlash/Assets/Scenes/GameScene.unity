@@ -259,7 +259,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _playerLocomotionState:
     Rb: {fileID: 588249118}
-    Animator: {fileID: 0}
     Anim: {fileID: 0}
     InputLocked: 0
     MoveInput: 0
@@ -1156,17 +1155,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3c913593312135745b3d884f71c4e4d6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _playerLocomotionState:
+  _locomotion:
     Rb: {fileID: 588249118}
-    Animator: {fileID: 0}
     Anim: {fileID: 284427182}
     InputLocked: 0
     MoveInput: 0
-    LastMoveInputNot0: 1
-  _moveAction: {fileID: 683367585}
-  _jumpAction: {fileID: 175571050}
-  _dashAction: {fileID: 1377223249}
-  _attackAction: {fileID: 1271020307}
+    LastMoveInputNot0: 0
+  _move: {fileID: 683367585}
+  _jump: {fileID: 175571050}
+  _dash: {fileID: 1377223249}
+  _attack: {fileID: 1271020307}
 --- !u!114 &588249117
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1444,7 +1442,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _playerLocomotionState:
     Rb: {fileID: 0}
-    Animator: {fileID: 0}
     Anim: {fileID: 0}
     InputLocked: 0
     MoveInput: 0
@@ -1587,7 +1584,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _playerLocomotionState:
     Rb: {fileID: 0}
-    Animator: {fileID: 0}
     Anim: {fileID: 0}
     InputLocked: 0
     MoveInput: 0
@@ -1676,7 +1672,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _playerLocomotionState:
     Rb: {fileID: 0}
-    Animator: {fileID: 0}
     Anim: {fileID: 0}
     InputLocked: 0
     MoveInput: 0
