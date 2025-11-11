@@ -1,149 +1,206 @@
 using System;
+using System.Collections;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 public class AttackAction : PlayerAction
 {
-    [Header("Attack Settings")]
-    [SerializeField] private float[] _attackDamages = { 1, 1.2f, 1.6f };   // damage per stage
-    [SerializeField] private float[] _attackCooldowns = { 0.4f, 0.5f, 0.7f }; // cooldown per stage
-    [SerializeField] private float _comboResetTime = 1.0f; // reset combo if idle this long
-    [SerializeField] private float _delayAttackTime = 0.3f;
+    [Header("Attack Stages")]
+    [SerializeField] private AttackStageData[] _stages;
+
+    [Header("Combo Settings")]
+    [SerializeField] private float _comboResetTime = 1.0f;   // (optional) time after combo ends to forget it
+    [SerializeField] private float _delayAttackTime = 0.3f;  // delay before damage is actually applied
+
     [Header("References")]
     [SerializeField] private AttackHitNotifier _hitNotifier;
 
     [Header("Runtime (Debug)")]
-    [SerializeField, ReadOnly] private int _currentAttackIndex = 0;
-    [SerializeField, ReadOnly] private float _attackTimer = 0f;
+    [SerializeField, ReadOnly] private int _currentStageIndex = -1;
+    [SerializeField, ReadOnly] private float _stageTimer = 0f;
     [SerializeField, ReadOnly] private bool _isAttacking = false;
     [SerializeField, ReadOnly] private bool _inputQueued = false;
-    [SerializeField, ReadOnly] private float _comboTimer = 0f;
-    public Action OnAttackEnded;
+    [SerializeField, ReadOnly] private float _comboIdleTimer = 0f;
 
-    [SerializeField] float _attackRange = 1.2f;
-    [SerializeField] LayerMask _enemyLayer;
-    [SerializeField] Transform _attackOrigin; // usually player transform or a child (null -> this.transform)
-    [SerializeField] bool _useOverlapSphere = true; // set to false to use Physics.Raycast for directional attacks
+    public event Action OnAttackEnded;
+
+    [Header("Debug Range")]
+    [SerializeField] private float _attackRange = 1.2f;
+    [SerializeField] private LayerMask _enemyLayer;
+    [SerializeField] private Transform _attackOrigin;
+    [SerializeField] private bool _useOverlapSphere = true;
+
+    private Animator _anim;
+
     private void Awake()
     {
-        _hitNotifier.OnHitTarget += HandleHitTarget;
+        _anim = _playerLocomotionState.Anim;
+
+        if (_hitNotifier != null)
+            _hitNotifier.OnHitTarget += HandleHitTarget;
     }
 
     private void OnDestroy()
     {
-        _hitNotifier.OnHitTarget -= HandleHitTarget;
-    }
-    private void Update()
-    {
-        HandleAttack();
+        if (_hitNotifier != null)
+            _hitNotifier.OnHitTarget -= HandleHitTarget;
     }
 
-    public void HandleAttack()
-    {
-        if (_isAttacking)
-        {
-            _attackTimer -= Time.deltaTime;
+    // ========== PUBLIC API ==========
 
-            // attack finished
-            if (_attackTimer <= 0f)
-            {
-                if (_inputQueued && _currentAttackIndex < _attackDamages.Length - 1)
-                {
-                    StartAttack(_currentAttackIndex + 1); // continue combo
-                }
-                else
-                {
-                    ResetCombo();
-                }
-                OnAttackEnded?.Invoke();
-                _hitNotifier.TurnOffHitBox();
-            }
-        }
-        else
-        {
-            // track idle time to reset combo chain
-            if (_currentAttackIndex > 0)
-            {
-                _comboTimer += Time.deltaTime;
-                if (_comboTimer >= _comboResetTime)
-                    ResetCombo();
-            }
-        }
-    }
-
+    /// <summary>
+    /// Called from the FSM or input when the player presses attack.
+    /// </summary>
     public void Attack()
     {
+        if (_stages == null || _stages.Length == 0)
+        {
+            Debug.LogWarning("[AttackAction] No stages configured.");
+            return;
+        }
+
         if (!_isAttacking)
         {
-            StartAttack(0); // first hit
+            // start from first stage
+            StartStage(0);
         }
         else
         {
-            // queue next attack if still inside animation/cooldown
+            // we are mid-attack: queue next stage
             _inputQueued = true;
         }
     }
 
-    private void StartAttack(int index)
+    /// <summary>
+    /// Call this from PlayerControllerStateless.Update while in Attacking state.
+    /// </summary>
+    public void Tick(float dt)
     {
+        if (_isAttacking)
+        {
+            _stageTimer -= dt;
+
+            if (_stageTimer <= 0f)
+            {
+                if (_inputQueued && _currentStageIndex < _stages.Length - 1)
+                {
+                    // continue combo
+                    StartStage(_currentStageIndex + 1);
+                }
+                else
+                {
+                    // combo finished
+                    FinishCombo();
+                }
+                OnAttackEnded?.Invoke();
+            }
+        }
+        else
+        {
+            // optional: forget last combo index after some idle time
+            if (_currentStageIndex >= 0)
+            {
+                _comboIdleTimer += dt;
+                if (_comboIdleTimer >= _comboResetTime)
+                {
+                    _currentStageIndex = -1;
+                    _comboIdleTimer = 0f;
+                }
+            }
+        }
+    }
+
+    // ========== INTERNAL LOGIC ==========
+
+    private void StartStage(int index)
+    {
+        index = Mathf.Clamp(index, 0, _stages.Length - 1);
+        var stage = _stages[index];
+
         _isAttacking = true;
         _inputQueued = false;
-        _currentAttackIndex = index;
-        _attackTimer = _attackCooldowns[index];
-        _comboTimer = 0f; // reset idle timer
+        _currentStageIndex = index;
+        _stageTimer = Mathf.Max(0.01f, stage.duration);
+        _comboIdleTimer = 0f;
 
-        // trigger animation
-        _playerLocomotionState.Anim.SetTrigger($"Attack");
-        string color;
-        switch (index)
+        if (_anim != null && !string.IsNullOrEmpty(stage.animTrigger))
+            _anim.SetTrigger(stage.animTrigger);
+
+        string color = index switch
         {
-            case 0:
-                color = "green";
-                break;
-            case 1:
-                color = "yellow";
-                break;
-            case 2:
-                color = "red";
-                break;
-            default:
-                color = "green";
-                break;
-        }
-        Debug.Log($"<color={color}>Attack {index + 1}!</color> Damage: {_attackDamages[index]}");
-        _hitNotifier.TurnOnHitBox();
-        // TODO: spawn hitbox / apply damage here
+            0 => "green",
+            1 => "yellow",
+            2 => "red",
+            _ => "white"
+        };
+
+        Debug.Log($"<color={color}>Attack {index + 1}!</color> Damage: {stage.damage}");
+
+        if (_hitNotifier != null)
+            _hitNotifier.TurnOnHitBox();
     }
+
+    private void FinishCombo()
+    {
+        if (_hitNotifier != null)
+            _hitNotifier.TurnOffHitBox();
+
+        _isAttacking = false;
+        _inputQueued = false;
+        _stageTimer = 0f;
+        _comboIdleTimer = 0f;
+        _currentStageIndex = -1;
+
+    }
+
+    private float GetCurrentStageDamage()
+    {
+        if (_stages == null || _stages.Length == 0)
+            return 0f;
+        if (_currentStageIndex < 0 || _currentStageIndex >= _stages.Length)
+            return 0f;
+
+        return _stages[_currentStageIndex].damage;
+    }
+
     private void HandleHitTarget(Collider2D hit)
     {
-        float damage = _attackDamages[_currentAttackIndex];
+        float damage = GetCurrentStageDamage();
+        if (damage <= 0f)
+            return;
+
         var dmg = hit.GetComponentInParent<IDamageable>();
         if (dmg != null)
         {
             StartCoroutine(AttackDelay(() =>
             {
                 dmg.TakeDamage(damage, gameObject);
+                _hitNotifier.TurnOffHitBox();
                 Debug.Log($"Dealt {damage} damage to {hit.name}");
             }));
         }
     }
-    private System.Collections.IEnumerator AttackDelay(System.Action action)
+
+    private IEnumerator AttackDelay(Action action)
     {
-        yield return new WaitForSeconds(_delayAttackTime);
+        if (_delayAttackTime > 0f)
+            yield return new WaitForSeconds(_delayAttackTime);
+
         action?.Invoke();
     }
-    private void ResetCombo()
-    {
-        _isAttacking = false;
-        _inputQueued = false;
-        _currentAttackIndex = 0;
-        _comboTimer = 0f;
-    }
+
     // Debug: draw range
-    void OnDrawGizmosSelected()
+    private void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.red;
         var origin = _attackOrigin ? _attackOrigin.position : transform.position;
         Gizmos.DrawWireSphere(origin, _attackRange);
     }
+}
+[Serializable]
+public class AttackStageData
+{
+    public string name;                  // for debugging / inspector
+    public float damage = 1f;            // damage dealt by this stage
+    public float duration = 0.5f;        // how long this stage lasts (animation+cooldown)
+    public string animTrigger = "Attack"; // e.g. "Attack_1", "Attack_2", "Attack_3"
 }

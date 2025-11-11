@@ -40,8 +40,8 @@ public class EnemyHealth : MonoBehaviour, IDamageable
 
         var anim = GetComponent<Animator>();
         // Optional invul frames
-        if (_useInvulnerability)
-            StartCoroutine(InvulCoroutine());
+        //if (_useInvulnerability)
+        //    StartCoroutine(InvulCoroutine());
 
         // Broadcast
         OnHealthChanged?.Invoke(_currentHealth, _maxHealth);

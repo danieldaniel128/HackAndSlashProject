@@ -2790,12 +2790,32 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 2094751760}
     - target: {fileID: 4732318640709009075, guid: 643491db0dbbde7408ebcaf6b40e7387, type: 3}
+      propertyPath: _delayAttackTime
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4732318640709009075, guid: 643491db0dbbde7408ebcaf6b40e7387, type: 3}
       propertyPath: _useOverlapSphere
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4732318640709009075, guid: 643491db0dbbde7408ebcaf6b40e7387, type: 3}
       propertyPath: _enemyLayer.m_Bits
       value: 128
+      objectReference: {fileID: 0}
+    - target: {fileID: 4732318640709009075, guid: 643491db0dbbde7408ebcaf6b40e7387, type: 3}
+      propertyPath: _stages.Array.size
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 4732318640709009075, guid: 643491db0dbbde7408ebcaf6b40e7387, type: 3}
+      propertyPath: _stages.Array.data[0].name
+      value: attack1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4732318640709009075, guid: 643491db0dbbde7408ebcaf6b40e7387, type: 3}
+      propertyPath: _stages.Array.data[1].name
+      value: attack2
+      objectReference: {fileID: 0}
+    - target: {fileID: 4732318640709009075, guid: 643491db0dbbde7408ebcaf6b40e7387, type: 3}
+      propertyPath: _stages.Array.data[2].name
+      value: attack3
       objectReference: {fileID: 0}
     - target: {fileID: 4732318640709009075, guid: 643491db0dbbde7408ebcaf6b40e7387, type: 3}
       propertyPath: '_attackDamages.Array.data[0]'
@@ -2808,6 +2828,42 @@ PrefabInstance:
     - target: {fileID: 4732318640709009075, guid: 643491db0dbbde7408ebcaf6b40e7387, type: 3}
       propertyPath: '_attackDamages.Array.data[2]'
       value: 1.7
+      objectReference: {fileID: 0}
+    - target: {fileID: 4732318640709009075, guid: 643491db0dbbde7408ebcaf6b40e7387, type: 3}
+      propertyPath: _stages.Array.data[0].damage
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 4732318640709009075, guid: 643491db0dbbde7408ebcaf6b40e7387, type: 3}
+      propertyPath: _stages.Array.data[1].damage
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 4732318640709009075, guid: 643491db0dbbde7408ebcaf6b40e7387, type: 3}
+      propertyPath: _stages.Array.data[2].damage
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 4732318640709009075, guid: 643491db0dbbde7408ebcaf6b40e7387, type: 3}
+      propertyPath: _stages.Array.data[0].duration
+      value: 0.3
+      objectReference: {fileID: 0}
+    - target: {fileID: 4732318640709009075, guid: 643491db0dbbde7408ebcaf6b40e7387, type: 3}
+      propertyPath: _stages.Array.data[1].duration
+      value: 0.3
+      objectReference: {fileID: 0}
+    - target: {fileID: 4732318640709009075, guid: 643491db0dbbde7408ebcaf6b40e7387, type: 3}
+      propertyPath: _stages.Array.data[2].duration
+      value: 0.3
+      objectReference: {fileID: 0}
+    - target: {fileID: 4732318640709009075, guid: 643491db0dbbde7408ebcaf6b40e7387, type: 3}
+      propertyPath: _stages.Array.data[0].animTrigger
+      value: Attack
+      objectReference: {fileID: 0}
+    - target: {fileID: 4732318640709009075, guid: 643491db0dbbde7408ebcaf6b40e7387, type: 3}
+      propertyPath: _stages.Array.data[1].animTrigger
+      value: Attack
+      objectReference: {fileID: 0}
+    - target: {fileID: 4732318640709009075, guid: 643491db0dbbde7408ebcaf6b40e7387, type: 3}
+      propertyPath: _stages.Array.data[2].animTrigger
+      value: Attack
       objectReference: {fileID: 0}
     - target: {fileID: 6189920663142773531, guid: 643491db0dbbde7408ebcaf6b40e7387, type: 3}
       propertyPath: m_LocalPosition.x

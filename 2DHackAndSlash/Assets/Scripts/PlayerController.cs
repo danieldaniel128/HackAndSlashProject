@@ -40,7 +40,7 @@ public class PlayerControllerStateless : MonoBehaviour
     private void Update()
     {
         _fsm.Fire(Trigger.Update);
-   
+        _attack.Tick(Time.deltaTime);
         RotatePlayer();
 
         // Jump processing that needs per-frame updates
@@ -128,7 +128,7 @@ public class PlayerControllerStateless : MonoBehaviour
             .InternalTransition(Trigger.AttackPressed, _attack.Attack)
             .Permit(Trigger.AttackFinished, State.Locomotion)
             .Ignore(Trigger.Update)
-            .OnExit(() => 
+            .OnExit(() =>
             {
                 _attack.OnAttackEnded -= OnAttackEndedEvent;
                 _locomotion.InputLocked = false;
@@ -163,7 +163,11 @@ public class PlayerControllerStateless : MonoBehaviour
         transform.localScale = scale;
     }
     private void OnDashEndedEvent() => _fsm.Fire(Trigger.DashFinished);
-    private void OnAttackEndedEvent() => _fsm.Fire(Trigger.AttackFinished);
+    private void OnAttackEndedEvent() 
+    {
+        _fsm.Fire(Trigger.AttackFinished);
+        Debug.Log("AttackFinished");
+    }
 
 }
 
