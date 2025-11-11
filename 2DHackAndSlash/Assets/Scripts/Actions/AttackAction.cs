@@ -33,7 +33,6 @@ public class AttackAction : PlayerAction
 
     private void Awake()
     {
-        _anim = _playerLocomotionState.Anim;
 
         if (_hitNotifier != null)
             _hitNotifier.OnHitTarget += HandleHitTarget;
@@ -121,9 +120,11 @@ public class AttackAction : PlayerAction
         _currentStageIndex = index;
         _stageTimer = Mathf.Max(0.01f, stage.duration);
         _comboIdleTimer = 0f;
-
+        _anim = _playerLocomotionState.Anim;
         if (_anim != null && !string.IsNullOrEmpty(stage.animTrigger))
+        {
             _anim.SetTrigger(stage.animTrigger);
+        }
 
         string color = index switch
         {

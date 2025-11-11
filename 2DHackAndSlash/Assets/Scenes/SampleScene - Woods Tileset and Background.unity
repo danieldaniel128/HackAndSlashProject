@@ -2791,7 +2791,7 @@ PrefabInstance:
       objectReference: {fileID: 2094751760}
     - target: {fileID: 4732318640709009075, guid: 643491db0dbbde7408ebcaf6b40e7387, type: 3}
       propertyPath: _delayAttackTime
-      value: 0
+      value: 0.3
       objectReference: {fileID: 0}
     - target: {fileID: 4732318640709009075, guid: 643491db0dbbde7408ebcaf6b40e7387, type: 3}
       propertyPath: _useOverlapSphere
