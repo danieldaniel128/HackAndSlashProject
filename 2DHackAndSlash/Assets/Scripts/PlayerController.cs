@@ -127,6 +127,7 @@ public class PlayerControllerStateless : MonoBehaviour
             })
             .InternalTransition(Trigger.AttackPressed, _attack.Attack)
             .Permit(Trigger.AttackFinished, State.Locomotion)
+            .Ignore(Trigger.Update)
             .OnExit(() => 
             {
                 _attack.OnAttackEnded -= OnAttackEndedEvent;
