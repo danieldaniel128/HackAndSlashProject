@@ -5,9 +5,12 @@ using UnityEngine.InputSystem;
 public class AttackAction : PlayerAction
 {
     [Header("Attack Settings")]
-    [SerializeField] private float[] _attackDamages = { 10f, 15f, 25f };   // damage per stage
+    [SerializeField] private float[] _attackDamages = { 1, 1.2f, 1.6f };   // damage per stage
     [SerializeField] private float[] _attackCooldowns = { 0.4f, 0.5f, 0.7f }; // cooldown per stage
     [SerializeField] private float _comboResetTime = 1.0f; // reset combo if idle this long
+    [SerializeField] private float _delayAttackTime = 0.3f;
+    [Header("References")]
+    [SerializeField] private AttackHitNotifier _hitNotifier;
 
     [Header("Runtime (Debug)")]
     [SerializeField, ReadOnly] private int _currentAttackIndex = 0;
@@ -16,6 +19,20 @@ public class AttackAction : PlayerAction
     [SerializeField, ReadOnly] private bool _inputQueued = false;
     [SerializeField, ReadOnly] private float _comboTimer = 0f;
     public Action OnAttackEnded;
+
+    [SerializeField] float _attackRange = 1.2f;
+    [SerializeField] LayerMask _enemyLayer;
+    [SerializeField] Transform _attackOrigin; // usually player transform or a child (null -> this.transform)
+    [SerializeField] bool _useOverlapSphere = true; // set to false to use Physics.Raycast for directional attacks
+    private void Awake()
+    {
+        _hitNotifier.OnHitTarget += HandleHitTarget;
+    }
+
+    private void OnDestroy()
+    {
+        _hitNotifier.OnHitTarget -= HandleHitTarget;
+    }
     private void Update()
     {
         HandleAttack();
@@ -39,6 +56,7 @@ public class AttackAction : PlayerAction
                     ResetCombo();
                 }
                 OnAttackEnded?.Invoke();
+                _hitNotifier.TurnOffHitBox();
             }
         }
         else
@@ -93,14 +111,39 @@ public class AttackAction : PlayerAction
                 break;
         }
         Debug.Log($"<color={color}>Attack {index + 1}!</color> Damage: {_attackDamages[index]}");
+        _hitNotifier.TurnOnHitBox();
         // TODO: spawn hitbox / apply damage here
     }
-
+    private void HandleHitTarget(Collider2D hit)
+    {
+        float damage = _attackDamages[_currentAttackIndex];
+        var dmg = hit.GetComponentInParent<IDamageable>();
+        if (dmg != null)
+        {
+            StartCoroutine(AttackDelay(() =>
+            {
+                dmg.TakeDamage(damage, gameObject);
+                Debug.Log($"Dealt {damage} damage to {hit.name}");
+            }));
+        }
+    }
+    private System.Collections.IEnumerator AttackDelay(System.Action action)
+    {
+        yield return new WaitForSeconds(_delayAttackTime);
+        action?.Invoke();
+    }
     private void ResetCombo()
     {
         _isAttacking = false;
         _inputQueued = false;
         _currentAttackIndex = 0;
         _comboTimer = 0f;
+    }
+    // Debug: draw range
+    void OnDrawGizmosSelected()
+    {
+        Gizmos.color = Color.red;
+        var origin = _attackOrigin ? _attackOrigin.position : transform.position;
+        Gizmos.DrawWireSphere(origin, _attackRange);
     }
 }

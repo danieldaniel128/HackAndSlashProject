@@ -40,27 +40,7 @@ public class PlayerControllerStateless : MonoBehaviour
     private void Update()
     {
         _fsm.Fire(Trigger.Update);
-        // Top-level gating by FSM
-        //switch (_fsm.State)
-        //{
-        //    case State.Locomotion:
-        //        _attack.HandleAttack(); // lets combo timer tick while moving
-        //        _dash.HandleDash();     // cooldown timer while we roam
-        //        break;
-        //    case State.Dashing:
-        //        _dash.HandleDash();
-        //        // If dash ended (DashAction clears its _hasDashed when done), fire finish
-        //        if (!_locomotion.InputLocked) // DashAction unlocks input on finish
-        //            _fsm.Fire(Trigger.DashFinished);
-        //        break;
-        //    case State.Attacking:
-        //        _attack.HandleAttack();
-        //        // If not attacking anymore (simple heuristic: animation back to locomotion)
-        //        // You can replace this with an animation event to call OnAttackAnimationEnd()
-        //        // or expose a public IsAttacking on AttackAction.
-        //        break;
-        //}
-
+   
         RotatePlayer();
 
         // Jump processing that needs per-frame updates
@@ -68,19 +48,22 @@ public class PlayerControllerStateless : MonoBehaviour
 
     private void FixedUpdate()
     {
-        // Physics-affecting behaviors gated by FSM
         if (_fsm.State == State.Locomotion)
         {
             _move.MovementFixed(Time.fixedDeltaTime);
-            _jump.HandleFall(Time.fixedDeltaTime);
         }
         else if (_fsm.State == State.Attacking)
         {
-            // Optional: very light drift/stop while attacking
             _rb.linearVelocity = new Vector2(0, _rb.linearVelocityY);
         }
-        _jump.HandleJump(Time.fixedDeltaTime);
+
+        // OLD:
+        // _jump.HandleJump(Time.fixedDeltaTime);
+
+        // NEW:
+        _jump.Tick(Time.fixedDeltaTime);
     }
+
 
     // ===== Input (call from PlayerInput actions) =====
     public void OnMove(InputAction.CallbackContext ctx)
@@ -150,13 +133,13 @@ public class PlayerControllerStateless : MonoBehaviour
                 _locomotion.InputLocked = false;
             });
 
-        _fsm.OnUnhandledTrigger((s, trig) =>
-        Debug.Log($"FSM ignored {trig} in {s}"));
+        //_fsm.OnUnhandledTrigger((s, trig) =>
+        //Debug.Log($"FSM ignored {trig} in {s}"));
 
-        _fsm.OnTransitioned(t => {
-            if (t.Source != t.Destination) // skip reentry if you want
-                Debug.Log($"[FSM] {t.Source} --{t.Trigger}--> {t.Destination} @ {Time.time:F3}s");
-        });
+        //_fsm.OnTransitioned(t => {
+        //    //if (t.Source != t.Destination) // skip reentry if you want
+        //    //    Debug.Log($"[FSM] {t.Source} --{t.Trigger}--> {t.Destination} @ {Time.time:F3}s");
+        //});
     }
 
     // Call this from an Animation Event at the end of your combo clips

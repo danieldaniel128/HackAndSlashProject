@@ -1,238 +1,258 @@
+using System;
+using Stateless;
 using UnityEngine;
 
 public class JumpAction : PlayerAction
 {
-    [Header("Jump Settings")]
-    [Header("Multipliers")]
-    [SerializeField] private float _fallGravityMultiplier = 2f; // Faster fall for snappy jumps
-    [SerializeField] private float _jumpMultiplier = 2f;     // Extra gravity if player releases jump early
+    private enum State
+    {
+        Grounded,
+        Airborne
+    }
 
-    [SerializeField, Range(0, 1)] private float _secondJumpMultiplier;
-    [Header("Settings")]
-    [SerializeField] private float _jumpForce = 12f;        // Initial upward force
-    [SerializeField] private int _maxJumps = 1;             // e.g., 2 for double jump
-    [SerializeField] private float _coyoteTime = 0.15f;     // Grace time after leaving ground
-    [SerializeField] private float _timeBeforeFalling = 3f; // Time after jump before falling animation
-    [SerializeField] float _stopEpsilon = 0.3f;
-    [SerializeField] private LayerMask _groundLayer; // assign in inspector
+    private enum Trigger
+    {
+        Update,
+        JumpRequested,
+        Landed,
+        LeftGround   // NEW: step off ledge
+    }
+
+    private StateMachine<State, Trigger> _fsm;
+
+    [Header("Jump Settings")]
+    [SerializeField] private float _jumpForce = 12f;
+    [SerializeField] private int _maxJumps = 1;
+    [SerializeField] private float _coyoteTime = 0.15f;
+    [SerializeField] private float _jumpBufferTime = 0.1f;
+
+    [SerializeField] private float _fallGravityMultiplier = 2.5f;
+    [SerializeField] private float _lowJumpGravityMultiplier = 3.5f;
+    [SerializeField] private float _terminalFallSpeed = -22f;
+
+    [SerializeField] private LayerMask _groundLayer;
     [SerializeField] private LayerMask _ceilingLayer;
 
-    [Header("Air Drag")]
-    [SerializeField] private float _airLinearDrag = 1.2f;     // c: scales with speed
-    [SerializeField] private float _airQuadraticDrag = 0.0f;  // k: scales with speed^2 (set >0 for stronger drag at high speed)
-    [SerializeField] private float _horizontalDragMultiplier = 0f; // extra tuning for x
-    [SerializeField] private float _verticalDragMultiplier = 1.0f;   // extra tuning for y
-    [SerializeField] private float _terminalFallSpeed = -22f;        // clamp max fall speed (downwards)
-
-    [Header("Apex Glide (Before Falling)")]
-    [SerializeField] private float _apexReleaseBoost = 1.0f;   // extra upward kick on release
-    [SerializeField] private float _apexMinUpSpeed = 0.5f;     // ensure some initial up-speed
-                                                               // Tip: set _timeBeforeFalling to ~0.08–0.18 for a tight, responsive feel (3f is huge)
-
-    [Header("Runtime")]
+    [Header("Runtime (debug)")]
     [SerializeField, ReadOnly] private int _jumpsRemaining;
     [SerializeField, ReadOnly] private float _coyoteTimer;
-    [SerializeField, ReadOnly] private float _timeBeforeFallingTimer;
+    [SerializeField, ReadOnly] private float _jumpBufferTimer;
+    [SerializeField, ReadOnly] private bool _isGrounded;
+    [SerializeField, ReadOnly] private bool _isJumpHeld;
 
-    [SerializeField, ReadOnly] bool _isBeforeFalling = false;
-    [SerializeField, ReadOnly] bool _isFalling = false;
+    [SerializeField, ReadOnly] private bool _playedJumpToFall;
+    [SerializeField, ReadOnly] private bool _playedFalling;
 
-    [SerializeField, ReadOnly] bool _isJumpHeld;
-    [SerializeField ,ReadOnly] bool _isGrounded;
-    [SerializeField ,ReadOnly] bool _isJumping;
-    [SerializeField, ReadOnly] private float _apexVyStart;
+    private Rigidbody2D _rb;
+    private Animator _anim;
+    private float _baseGravityScale;
 
-
-
-    private bool _jumpHeldLastFrame;
-    private float _gravityInitValue;
     private void Start()
     {
+        _rb = _playerLocomotionState.Rb;
+        _anim = _playerLocomotionState.Anim;
+
+        _baseGravityScale = _rb.gravityScale;
         _jumpsRemaining = _maxJumps;
-        _coyoteTimer = _coyoteTime;
-        _timeBeforeFallingTimer = _timeBeforeFalling;
-        _gravityInitValue = Physics2D.gravity.y;
+
+        BuildStateMachine();
     }
 
-    /// <summary>
-    /// Called when jump input is pressed.
-    /// Stores the intent to jump using buffer.
-    /// </summary>
+    private void BuildStateMachine()
+    {
+        _fsm = new StateMachine<State, Trigger>(State.Grounded);
+
+        _fsm.Configure(State.Grounded)
+            .OnEntry(() =>
+            {
+                _isGrounded = true;
+                _jumpsRemaining = _maxJumps;
+                _coyoteTimer = 0f;
+                _rb.gravityScale = _baseGravityScale;
+                _anim.SetBool("OnGround", true);
+
+                _playedJumpToFall = false;
+                _playedFalling = false;
+            })
+            .InternalTransition(Trigger.Update, GroundedUpdate)
+            .Permit(Trigger.JumpRequested, State.Airborne)
+            .Permit(Trigger.LeftGround, State.Airborne);  // step off ledge -> airborne (no jump force)
+
+        _fsm.Configure(State.Airborne)
+            .OnEntryFrom(Trigger.JumpRequested, PerformJump)          // jump
+            .OnEntryFrom(Trigger.LeftGround, EnterAirborneFromFall) // just walked off
+            .InternalTransition(Trigger.Update, AirborneUpdate)
+            .Permit(Trigger.Landed, State.Grounded)
+            .PermitReentryIf(Trigger.JumpRequested, () => _jumpsRemaining > 0);
+
+        _fsm.OnUnhandledTrigger((s, trig) =>
+            Debug.Log($"[JumpFSM] Ignored {trig} in {s}"));
+
+        // >>> Transition logger you asked for <<<
+        _fsm.OnTransitioned(t =>
+        {
+            if (t.Source != t.Destination) // skip reentry if you want
+                Debug.Log($"[FSM] <color=red>{t.Source}</color> --{t.Trigger}--> <color=green>{t.Destination}</color> @ {Time.time:F3}s");
+        });
+    }
+
+    // ========== Public API ==========
+
+    public void SetJumpHeld(bool isHeld)
+    {
+        _isJumpHeld = isHeld;
+    }
+
     public void TryJump()
     {
-        if (((_coyoteTimer > 0f && _jumpsRemaining == 1) || (_maxJumps >= 2 && 1 <= _jumpsRemaining)))
-        {
-            DoJump();
-        }
+        // buffer the request – consumed in Tick
+        _jumpBufferTimer = _jumpBufferTime;
     }
 
-    /// <summary>
-    /// Called every Update().
-    /// Handles buffer, coyote time, and variable jump.
-    /// </summary>
-    public void HandleJump(float dt)
+    // call from FixedUpdate
+    public void Tick(float dt)
     {
-        if (_playerLocomotionState.InputLocked)
-            return;
-        else if (Physics2D.gravity.y == 0 && _isBeforeFalling == false)
-            Physics2D.gravity = new Vector2(Physics2D.gravity.x, _gravityInitValue);
-        Rigidbody2D rb = _playerLocomotionState.Rb;
-        // --- Update timers ---
         if (!_isGrounded && _coyoteTimer > 0f)
-        {
             _coyoteTimer -= dt;
-            if (_coyoteTimer <= 0f)
-            {
-                _coyoteTimer = 0f; // clamp
-            }
-        }
-        if (_isBeforeFalling)
+
+        if (_jumpBufferTimer > 0f)
         {
-            _timeBeforeFallingTimer -= dt;
-            rb.linearVelocityY = 0;
-            //Debug.Log("<color=lightblue>before falling</color>");
-            if (_timeBeforeFallingTimer <= 0f)
-            {
-                _timeBeforeFallingTimer = 0f; // clamp
-                _isBeforeFalling = false;
-                _isFalling = true;
-                _playerLocomotionState.Anim.SetTrigger("Falling");
-                Physics2D.gravity = new Vector2(Physics2D.gravity.x, _gravityInitValue);
-                //Debug.Log("<color=red>start falling</color>");
-            }
+            _jumpBufferTimer -= dt;
+            TryConsumeBufferedJump();
         }
-        // --- Perform jump if buffered and allowed ---
-    }
-    public void HandleFall(float dt)
-    {
-        Rigidbody2D rb = _playerLocomotionState.Rb;
-        if (!_isBeforeFalling && ((!_isJumpHeld && _jumpHeldLastFrame) || (0 <= rb.linearVelocityY && rb.linearVelocityY <= _stopEpsilon)) && _isJumping)
-        {
-            //Debug.Log($"<color=green>{(!_isJumpHeld && _jumpHeldLastFrame)}</color>");
-            _jumpHeldLastFrame = false;
-            EnterBeforeFalling(rb, addReleaseBoost: true);
-            //Debug.Log("<color=blue>before falling</color>");
-        }
-        // --- Apply variable gravity for better feel ---
-        else if (_isFalling) // falling
-        {
-            rb.linearVelocity += Vector2.up * Physics2D.gravity.y * _fallGravityMultiplier * dt;
-            ApplyAirDrag(rb, dt);
-            //Debug.Log("<color=red>falling</color>");
-        }
-        else if (rb.linearVelocityY > 0)//v= v0 +at
-        {
-            rb.linearVelocity += Vector2.up * Physics2D.gravity.y * _jumpMultiplier * dt;
-            ApplyAirDrag(rb, dt);
-            //Debug.Log($"<color=yellow>low jump</color>");
-           // Debug.Log("<color=yellow>low jump</color>");
-        }
+
+        _fsm.Fire(Trigger.Update);
     }
 
-    /// <summary>
-    /// Executes a jump.
-    /// </summary>
-    private void DoJump()
-    {
-        Rigidbody2D rb = _playerLocomotionState.Rb;
-        rb.linearVelocity = new Vector2(rb.linearVelocityX, 0f); // reset vertical before jump
-        rb.linearVelocity += Vector2.up * _jumpForce * ((_maxJumps == 2 && _jumpsRemaining == 1) ? _secondJumpMultiplier : 1);   // add jump impulse
-        _isJumping = true;
-        _timeBeforeFallingTimer = 0f; // clamp
-        _isBeforeFalling = false;
-        _isFalling = false;
-        _coyoteTimer = 0f;     // consume coyote time
-        _jumpsRemaining--;     // consume jump
-        _playerLocomotionState.Anim.SetTrigger("Jump");
-        //Debug.Log("jumped");
-    }
+    // ========== Collision ==========
+
     private void OnTriggerEnter2D(Collider2D collision)
     {
-        // --- Grounded reset ---
-        // Check if the collided object's layer is in the ground mask
-        if (((1 << collision.gameObject.layer) & _groundLayer) != 0)
+        int layer = collision.gameObject.layer;
+
+        if (IsInLayerMask(layer, _groundLayer))
         {
-            // It's ground
             _isGrounded = true;
-            _isJumping = false;
-            _isFalling = false;
-            _coyoteTimer = _coyoteTime;       // refresh coyote
-            _jumpsRemaining = _maxJumps;
-            _playerLocomotionState.Anim.SetBool("OnGround", true);
+            _coyoteTimer = 0f;
+            _fsm.Fire(Trigger.Landed);
         }
-        if(((1 << collision.gameObject.layer) & _ceilingLayer) != 0)
+
+        if (IsInLayerMask(layer, _ceilingLayer))
         {
-            EnterBeforeFalling(_playerLocomotionState.Rb, addReleaseBoost: false);
-            //Debug.Log("<color=blue>touch ceiling</color>");
+            // head bonk – zero upward velocity
+            if (_rb.linearVelocityY > 0f)
+                _rb.linearVelocityY = 0f;
         }
     }
 
     private void OnTriggerExit2D(Collider2D collision)
     {
-        if (((1 << collision.gameObject.layer) & _groundLayer) != 0)
+        int layer = collision.gameObject.layer;
+        if (IsInLayerMask(layer, _groundLayer))
         {
-            // No longer touching ground
             _isGrounded = false;
-            _playerLocomotionState.Anim.SetBool("OnGround", false);
-            if(!_isJumping)
+            _coyoteTimer = _coyoteTime;
+            _anim.SetBool("OnGround", false);
+
+            // NEW: walking off a ledge -> go to Airborne (falling) state
+            if (_fsm.State == State.Grounded)
+                _fsm.Fire(Trigger.LeftGround);
+        }
+    }
+
+    // ========== Internal FSM logic ==========
+
+    private void GroundedUpdate()
+    {
+        // Grounded: nothing special – jump is handled via buffered request
+    }
+
+    private void AirborneUpdate()
+    {
+        var v = _rb.linearVelocity;
+
+        bool rising = v.y > 0.01f;
+        bool falling = v.y <= 0.01f;
+
+        if (rising)
+        {
+            // Held = high jump, released = short jump
+            _rb.gravityScale = _isJumpHeld ? _baseGravityScale : _lowJumpGravityMultiplier;
+        }
+        else if (falling)
+        {
+            // First time we start to really fall: "before falling" anim
+            if (!_playedJumpToFall)
             {
-                EnterBeforeFalling(_playerLocomotionState.Rb, addReleaseBoost: false);
-                _playerLocomotionState.Anim.SetTrigger("JumpToFall");
-                _timeBeforeFallingTimer = _timeBeforeFalling;
-                //Debug.Log("<color=blue>before falling</color>");
+                _anim.SetTrigger("JumpToFall");   // your "before falling" animation
+                _playedJumpToFall = true;
+            }
+
+            // Strong fall anim after some downward speed
+            if (!_playedFalling && v.y < -0.5f)
+            {
+                _anim.SetTrigger("Falling");
+                _playedFalling = true;
+            }
+
+            _rb.gravityScale = _fallGravityMultiplier;
+
+            if (v.y < _terminalFallSpeed)
+            {
+                v.y = _terminalFallSpeed;
+                _rb.linearVelocity = v;
             }
         }
     }
-    public void SetJumpHeld(bool isJumpHeld) 
+
+    private void TryConsumeBufferedJump()
     {
-        _isJumpHeld = isJumpHeld;
-        if(_isJumpHeld)
-            _jumpHeldLastFrame = true;
+        if (_jumpBufferTimer <= 0f)
+            return;
+
+        bool onGround = _isGrounded;
+        bool canUseCoyote = !onGround && _coyoteTimer > 0f;
+        bool hasExtraJump = !onGround && _jumpsRemaining > 0;
+
+        if (!onGround && !canUseCoyote && !hasExtraJump)
+            return;
+
+        // we can jump now
+        _jumpBufferTimer = 0f;
+        _coyoteTimer = 0f;
+
+        _fsm.Fire(Trigger.JumpRequested);
     }
-    private void ApplyAirDrag(Rigidbody2D rb, float dt)
+
+    private void PerformJump()
     {
-        // no drag if we're in the "before falling" freeze window
-        if (_isBeforeFalling) return;
+        _playedJumpToFall = false;
+        _playedFalling = false;
 
-        Vector2 v = rb.linearVelocity;
-        float speed = v.magnitude;
-        if (speed < 0.0001f) return;
+        // reset vertical velocity then add jump impulse
+        _rb.linearVelocityY = 0f;
+        _rb.linearVelocity += Vector2.up * _jumpForce;
 
-        // Drag model: a = -(c * v + k * |v| * v)  (acceleration-like; units/tuning are arbitrary)
-        Vector2 vDir = v / speed;
-        float dragMag = _airLinearDrag * speed + _airQuadraticDrag * speed * speed;
-        Vector2 dragAccel = -vDir * dragMag;
+        _jumpsRemaining = Mathf.Max(0, _jumpsRemaining - 1);
 
-        // Optional axis scaling (lets you keep horizontal control while damping vertical more)
-        dragAccel = new Vector2(dragAccel.x * _horizontalDragMultiplier,
-                                dragAccel.y * _verticalDragMultiplier);
+        _rb.gravityScale = _baseGravityScale;
 
-        // Integrate
-        rb.linearVelocity += dragAccel * dt;
-
-        // Terminal velocity clamp (downwards only)
-        if (rb.linearVelocityY < _terminalFallSpeed)
-            rb.linearVelocityY = _terminalFallSpeed;
+        _anim.SetTrigger("Jump");
+        _anim.SetBool("OnGround", false);
     }
-    private void EnterBeforeFalling(Rigidbody2D rb, bool addReleaseBoost)
+
+    private void EnterAirborneFromFall()
     {
-        if (_isBeforeFalling) return;
+        // step off platform – just start tracking as airborne
+        _playedJumpToFall = false;
+        _playedFalling = false;
 
-        float vy = Mathf.Max(0f, rb.linearVelocityY);
-        if (addReleaseBoost)
-            vy = Mathf.Max(vy, _apexMinUpSpeed) + _apexReleaseBoost;
+        _rb.gravityScale = _baseGravityScale;
+        _anim.SetBool("OnGround", false);
+    }
 
-        _apexVyStart = vy;
-        rb.linearVelocityY = _apexVyStart;
-
-        _isBeforeFalling = true;
-        _isFalling = false;
-        _timeBeforeFallingTimer = _timeBeforeFalling;
-
-        // pause gravity globally (kept to match your current pattern)
-        Physics2D.gravity = new Vector2(Physics2D.gravity.x, 0f);
-
-        _playerLocomotionState.Anim.SetTrigger("JumpToFall");
-        // Debug.Log("<color=blue>enter BEFORE FALLING</color>");
+    private static bool IsInLayerMask(int layer, LayerMask mask)
+    {
+        return (mask & (1 << layer)) != 0;
     }
 }
