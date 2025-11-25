@@ -27,7 +27,6 @@ public class PlayerControllerStateless : MonoBehaviour
     private void Awake()
     {
         _rb = GetComponent<Rigidbody2D>();
-
         // Wire actions to the same locomotion context
         _move.InitAction(_locomotion);
         _jump.InitAction(_locomotion);
@@ -42,24 +41,11 @@ public class PlayerControllerStateless : MonoBehaviour
         _fsm.Fire(Trigger.Update);
         _attack.Tick(Time.deltaTime);
         RotatePlayer();
-
         // Jump processing that needs per-frame updates
     }
 
     private void FixedUpdate()
     {
-        if (_fsm.State == State.Locomotion)
-        {
-            _move.MovementFixed(Time.fixedDeltaTime);
-        }
-        else if (_fsm.State == State.Attacking)
-        {
-            _rb.linearVelocity = new Vector2(0, _rb.linearVelocityY);
-        }
-
-        // OLD:
-        // _jump.HandleJump(Time.fixedDeltaTime);
-
         // NEW:
         _jump.Tick(Time.fixedDeltaTime);
     }
@@ -121,6 +107,7 @@ public class PlayerControllerStateless : MonoBehaviour
         _fsm.Configure(State.Attacking)
             .OnEntry(() =>
             {
+                _rb.linearVelocity = new Vector2(0, _rb.linearVelocityY);
                 _attack.OnAttackEnded += OnAttackEndedEvent;
                 _attack.Attack();       // kicks off first hit
                 _locomotion.InputLocked = true; // freeze locomotion while attack anim plays
@@ -163,12 +150,7 @@ public class PlayerControllerStateless : MonoBehaviour
         transform.localScale = scale;
     }
     private void OnDashEndedEvent() => _fsm.Fire(Trigger.DashFinished);
-    private void OnAttackEndedEvent() 
-    {
-        _fsm.Fire(Trigger.AttackFinished);
-        Debug.Log("AttackFinished");
-    }
-
+    private void OnAttackEndedEvent() => _fsm.Fire(Trigger.AttackFinished);
 }
 
 // Keep using your existing PlayerLocomotion definition
