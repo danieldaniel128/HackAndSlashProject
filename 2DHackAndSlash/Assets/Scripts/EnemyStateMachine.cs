@@ -22,6 +22,9 @@ public class EnemyStateMachine : MonoBehaviour
         DeagroFinished
     }
 
+    // Ron's Code 
+    [SerializeField] private TMPro.TextMeshProUGUI _stateText;
+
     [Header("References")]
     [SerializeField] private Transform _player;
     [SerializeField] private Transform _patrolPointA;
@@ -124,6 +127,9 @@ public class EnemyStateMachine : MonoBehaviour
                 UpdateAttack(dt);
                 break;
         }
+        
+        // ron's code
+        _stateText.text = _currentState.ToString();
     }
 
     // =========================
