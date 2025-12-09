@@ -1,55 +1,63 @@
-using System.Collections.Generic;
+using System.Collections;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 public class RoomsManager : MonoBehaviour
 {
-    [SerializeField] List<Room> rooms;
-    [SerializeField] GameObject player; // Assign your player GameObject in the inspector
+    [SerializeField] private RoomGraphSO _graph;
+    [SerializeField] private GameObject _player;
 
-    private int currentRoomIndex = 0;
+    private RoomDataSO _currentRoom;
 
-    void Start()
+    private void Awake()
     {
-        LoadRoomScene(currentRoomIndex);
+        DontDestroyOnLoad(gameObject);
+        if (_player != null)
+            DontDestroyOnLoad(_player);
     }
 
-    public void LoadRoomScene(int roomIndex)
+    private void Start()
     {
-        if (roomIndex < 0 || roomIndex >= rooms.Count) return;
-
-        currentRoomIndex = roomIndex;
-        // Load the scene asynchronously to allow post-load actions
-        SceneManager.sceneLoaded += OnRoomSceneLoaded;
-        SceneManager.LoadScene(rooms[roomIndex].RoomType.ToString());
-    }
-
-    private void OnRoomSceneLoaded(Scene scene, LoadSceneMode mode)
-    {
-        // Find the spawn point in the loaded scene
-        Room currentRoom = rooms[currentRoomIndex];
-        if (currentRoom.RoomSpawnPoint != null && player != null)
+        if (_graph != null && _graph.StartingRoom != null)
         {
-            player.transform.position = currentRoom.RoomSpawnPoint.position;
+            LoadRoomAsync(_graph.StartingRoom);
+        }
+    }
 
-            // Reset Rigidbody
-            Rigidbody rb = player.GetComponent<Rigidbody>();
-            if (rb != null)
+    public void LoadRoomAsync(RoomDataSO room, string entryId = "Default")
+    {
+        if (room == null) return;
+        _currentRoom = room;
+        StartCoroutine(LoadRoomRoutine(room.SceneName, entryId));
+    }
+
+    private IEnumerator LoadRoomRoutine(string sceneName, string entryId)
+    {
+        var op = SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Single);
+
+        while (!op.isDone)
+            yield return null;
+
+        // find spawn point in new scene
+        var spawns = FindObjectsOfType<RoomSpawnPoint>();
+        var target = spawns.FirstOrDefault(s => s.EntryId == entryId) ?? spawns.FirstOrDefault();
+
+        if (target != null && _player != null)
+        {
+            _player.transform.position = target.transform.position;
+
+            if (_player.TryGetComponent<Rigidbody>(out var rb))
             {
                 rb.linearVelocity = Vector3.zero;
                 rb.angularVelocity = Vector3.zero;
             }
         }
-        SceneManager.sceneLoaded -= OnRoomSceneLoaded;
     }
 
-    // Call this when the player reaches the exit
-    public void OnPlayerReachedExit(Room nextRoom)
+    public void OnPlayerReachedExit(RoomDataSO nextRoom, string exitId = "Default")
     {
-        int nextRoomIndex = rooms.IndexOf(nextRoom);
-        if (nextRoomIndex != -1)
-        {
-            LoadRoomScene(nextRoomIndex);
-        }
+        if (nextRoom == null) return;
+        LoadRoomAsync(nextRoom, exitId);
     }
 }

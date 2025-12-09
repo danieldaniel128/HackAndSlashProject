@@ -1,12 +1,15 @@
 using System.Collections.Generic;
 using UnityEngine;
-[System.Serializable]
-public class Room
+
+[CreateAssetMenu(menuName = "Rooms/Room Data", fileName = "Room_")]
+public class RoomDataSO : ScriptableObject
 {
-    public Transform RoomSpawnPoint;
-    public List<Room> ConnectedRooms;
-    public RoomTypeEnum RoomType;
+    [field: SerializeField] public string Id { get; private set; }              // "Room_01", "Boss_A"
+    [field: SerializeField] public string SceneName { get; private set; }       // e.g. "FightRoom_Variant1"
+    [field: SerializeField] public RoomTypeEnum RoomType { get; private set; }
+    [field: SerializeField] public List<RoomDataSO> ConnectedRooms { get; private set; } = new();
 }
+
 public enum RoomTypeEnum
 {
     Tresure,Fight,Boss, Shop, Rest, DanielIsHereNotAIEasterEgg

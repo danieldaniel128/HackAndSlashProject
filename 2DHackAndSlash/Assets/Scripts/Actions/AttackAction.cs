@@ -24,10 +24,15 @@ public class AttackAction : PlayerAction
     public event Action OnAttackEnded;
 
     [Header("Debug Range")]
-    [SerializeField] private float _attackRange = 1.2f;
+    //[SerializeField] private float _attackRange = 1.2f;
     [SerializeField] private LayerMask _enemyLayer;
     [SerializeField] private Transform _attackOrigin;
     [SerializeField] private bool _useOverlapSphere = true;
+
+    [Header("Input Buffer")]
+    [SerializeField] private float _attackInputCooldown = 0.2f; // How long buffered inputs remain valid
+    [SerializeField, ReadOnly] private float _lastAttackInputTimer = 0f;
+    [SerializeField, ReadOnly] private bool _canAttackInput = true;
 
     private Animator _anim;
 
@@ -36,6 +41,7 @@ public class AttackAction : PlayerAction
 
         if (_hitNotifier != null)
             _hitNotifier.OnHitTarget += HandleHitTarget;
+        _lastAttackInputTimer = _attackInputCooldown;
     }
 
     private void OnDestroy()
@@ -51,6 +57,11 @@ public class AttackAction : PlayerAction
     /// </summary>
     public void Attack()
     {
+        // Record the input so it can be consumed later
+        if (_canAttackInput == false)// input consumed already, wait for buffer to expire
+            return;
+        else
+            _canAttackInput = false;
         if (_stages == null || _stages.Length == 0)
         {
             Debug.LogWarning("[AttackAction] No stages configured.");
@@ -59,21 +70,32 @@ public class AttackAction : PlayerAction
 
         if (!_isAttacking)
         {
-            // start from first stage
             StartStage(0);
         }
         else
         {
-            // we are mid-attack: queue next stage
-            _inputQueued = true;
+            _inputQueued = true; // still allow classic queue
         }
     }
+
 
     /// <summary>
     /// Call this from PlayerControllerStateless.Update while in Attacking state.
     /// </summary>
     public void Tick(float dt)
     {
+        // ------------------------
+        // Handle input buffer decay
+        // ------------------------
+        if (!_canAttackInput && _lastAttackInputTimer > 0f)
+        {
+            _lastAttackInputTimer -= dt;
+            if (_lastAttackInputTimer <= 0f)
+            {
+                _canAttackInput = true; // buffer expired
+                _lastAttackInputTimer = _attackInputCooldown;
+            }
+        }
         if (_isAttacking)
         {
             _stageTimer -= dt;
@@ -189,13 +211,13 @@ public class AttackAction : PlayerAction
         action?.Invoke();
     }
 
-    // Debug: draw range
-    private void OnDrawGizmosSelected()
-    {
-        Gizmos.color = Color.red;
-        var origin = _attackOrigin ? _attackOrigin.position : transform.position;
-        Gizmos.DrawWireSphere(origin, _attackRange);
-    }
+    //// Debug: draw range
+    //private void OnDrawGizmosSelected()
+    //{
+    //    Gizmos.color = Color.red;
+    //    var origin = _attackOrigin ? _attackOrigin.position : transform.position;
+    //    Gizmos.DrawWireSphere(origin, _attackRange);
+    //}
 }
 [Serializable]
 public class AttackStageData
